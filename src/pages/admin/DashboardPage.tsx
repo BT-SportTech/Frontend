@@ -1,93 +1,20 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, resolveAssetUrl } from '../../lib/api'
+import { useQuery } from '@tanstack/react-query'
+import { resolveAssetUrl } from '../../lib/api'
 import { SCHOOL_TYPES } from '../../interfaces/school.interface'
-import type { Paginated, SchoolListItem, SchoolType } from '../../lib/types'
+import {
+  dashboardKeys,
+  fetchDashboardStats,
+} from '../../lib/queries/dashboard'
 import { GlassPanel } from '../../components/ui'
 
-interface DashboardStats {
-  schoolsActive: number
-  schoolsInactive: number
-  usersTotal: number
-  students: number
-  professionals: number
-  byType: Record<SchoolType, number>
-  recentSchools: SchoolListItem[]
-}
-
-const emptyByType = Object.fromEntries(
-  SCHOOL_TYPES.map((type) => [type, 0]),
-) as Record<SchoolType, number>
-
 export function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { data: stats, isPending, isError, error } = useQuery({
+    queryKey: dashboardKeys.all,
+    queryFn: fetchDashboardStats,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError('')
-      try {
-        const [
-          schoolsActive,
-          schoolsInactive,
-          usersTotal,
-          students,
-          professionals,
-          recent,
-          ...typeCounts
-        ] = await Promise.all([
-          api<Paginated<SchoolListItem>>('/schools?page=1&limit=1'),
-          api<Paginated<SchoolListItem>>(
-            '/schools?page=1&limit=1&isActive=false',
-          ),
-          api<Paginated<unknown>>('/users?page=1&limit=1'),
-          api<Paginated<unknown>>('/users?page=1&limit=1&role=STUDENT'),
-          api<Paginated<unknown>>('/users?page=1&limit=1&role=PROFESSIONAL'),
-          api<Paginated<SchoolListItem>>('/schools?page=1&limit=5'),
-          ...SCHOOL_TYPES.map((type) =>
-            api<Paginated<SchoolListItem>>(
-              `/schools?page=1&limit=1&type=${type}`,
-            ),
-          ),
-        ])
-
-        if (cancelled) return
-
-        const byType = { ...emptyByType }
-        SCHOOL_TYPES.forEach((type, index) => {
-          byType[type] = typeCounts[index]?.meta.total ?? 0
-        })
-
-        setStats({
-          schoolsActive: schoolsActive.meta.total,
-          schoolsInactive: schoolsInactive.meta.total,
-          usersTotal: usersTotal.meta.total,
-          students: students.meta.total,
-          professionals: professionals.meta.total,
-          byType,
-          recentSchools: recent.data,
-        })
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : 'Failed to load analytics',
-          )
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  const loading = isPending
   const schoolsTotal =
     (stats?.schoolsActive ?? 0) + (stats?.schoolsInactive ?? 0)
   const maxTypeCount = Math.max(1, ...Object.values(stats?.byType ?? {}))
@@ -95,7 +22,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+        <h1 className="font-sans text-3xl font-bold tracking-tight text-ink">
           Dashboard
         </h1>
         <p className="mt-1.5 text-sm text-ink/55">
@@ -103,9 +30,9 @@ export function DashboardPage() {
         </p>
       </div>
 
-      {error ? (
+      {isError ? (
         <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-          {error}
+          {error instanceof Error ? error.message : 'Failed to load analytics'}
         </p>
       ) : null}
 
@@ -143,46 +70,27 @@ export function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-5">
         <GlassPanel strong className="p-6 lg:col-span-3">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-lg font-bold text-ink">
+            <h2 className="font-sans text-lg font-bold text-ink">
               Schools by type
             </h2>
             <p className="text-xs font-medium text-ink/50">
               {loading ? '…' : `${schoolsTotal} total`}
             </p>
           </div>
-          <div className="mt-5 space-y-3.5">
-            {SCHOOL_TYPES.map((type) => {
-              const count = stats?.byType[type] ?? 0
-              const width = loading ? 0 : (count / maxTypeCount) * 100
-              return (
-                <div key={type}>
-                  <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                    <span className="font-medium text-ink/85">
-                      {type.replaceAll('_', ' ')}
-                    </span>
-                    <span className="font-semibold tabular-nums text-ink">
-                      {loading ? '—' : count}
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-line/70">
-                    <div
-                      className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
-                      style={{ width: `${width}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <SchoolsByTypeChart
+            byType={stats?.byType}
+            loading={loading}
+            maxTypeCount={maxTypeCount}
+          />
           {!loading && stats ? (
-            <p className="mt-5 text-xs text-ink/50">
+            <p className="mt-4 text-xs text-ink/50">
               {stats.schoolsInactive} inactive · {stats.schoolsActive} active
             </p>
           ) : null}
         </GlassPanel>
 
         <GlassPanel strong className="flex flex-col p-6 lg:col-span-2">
-          <h2 className="font-display text-lg font-bold text-ink">
+          <h2 className="font-sans text-lg font-bold text-ink">
             Recent schools
           </h2>
           <div className="mt-4 flex-1 space-y-2">
@@ -230,43 +138,78 @@ export function DashboardPage() {
           </Link>
         </GlassPanel>
       </div>
+    </div>
+  )
+}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link to="/admin/schools" className="group block">
-          <GlassPanel
-            strong
-            className="relative overflow-hidden p-6 transition group-hover:-translate-y-0.5"
-          >
-            <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-              Schools
-            </p>
-            <p className="mt-2 font-display text-xl font-bold text-ink">
-              Register & manage schools
-            </p>
-            <p className="mt-2 text-sm text-ink/55">
-              Search, create, update, and deactivate school profiles.
-            </p>
-          </GlassPanel>
-        </Link>
+function SchoolsByTypeChart({
+  byType,
+  loading,
+  maxTypeCount,
+}: {
+  byType?: Record<string, number>
+  loading: boolean
+  maxTypeCount: number
+}) {
+  return (
+    <div className="mt-5">
+      <div
+        className="relative h-48 border-b border-l border-line/80 pt-6"
+        role="img"
+        aria-label="Bar chart of schools by type"
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-6 bottom-0" aria-hidden>
+          {[0.25, 0.5, 0.75].map((fraction) => (
+            <div
+              key={fraction}
+              className="absolute inset-x-0 border-t border-dashed border-line/55"
+              style={{ bottom: `${fraction * 100}%` }}
+            />
+          ))}
+        </div>
 
-        <Link to="/admin/users" className="group block">
-          <GlassPanel
-            strong
-            className="relative overflow-hidden p-6 transition group-hover:-translate-y-0.5"
-          >
-            <div className="absolute inset-y-0 left-0 w-1 bg-secondary" />
-            <p className="text-sm font-semibold uppercase tracking-wide text-secondary">
-              Users
+        <div className="absolute inset-x-0 top-6 bottom-0 flex items-end gap-2 px-1 sm:gap-3 sm:px-2">
+          {SCHOOL_TYPES.map((type) => {
+            const count = byType?.[type] ?? 0
+            const heightPct = loading ? 0 : (count / maxTypeCount) * 100
+            const label = type.replaceAll('_', ' ')
+
+            return (
+              <div
+                key={type}
+                className="relative flex h-full min-w-0 flex-1 items-end justify-center"
+              >
+                <div
+                  className="relative w-[70%] max-w-14 rounded-t-md bg-primary transition-[height] duration-500 ease-out"
+                  style={{
+                    height: `${heightPct}%`,
+                    minHeight: !loading && count > 0 ? 4 : 0,
+                  }}
+                  title={`${label}: ${count}`}
+                >
+                  <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums text-ink">
+                    {loading ? '—' : count}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-2 flex gap-2 px-1 sm:gap-3 sm:px-2">
+        {SCHOOL_TYPES.map((type) => {
+          const label = type.replaceAll('_', ' ')
+          return (
+            <p
+              key={type}
+              className="min-w-0 flex-1 truncate text-center text-[10px] font-medium leading-tight text-ink/65 sm:text-xs"
+              title={label}
+            >
+              {label}
             </p>
-            <p className="mt-2 font-display text-xl font-bold text-ink">
-              Browse players
-            </p>
-            <p className="mt-2 text-sm text-ink/55">
-              Filter students and professionals with pagination.
-            </p>
-          </GlassPanel>
-        </Link>
+          )
+        })}
       </div>
     </div>
   )
@@ -301,7 +244,7 @@ function StatCard({
         >
           {label}
         </p>
-        <p className="mt-2 font-display text-3xl font-bold tabular-nums text-ink">
+        <p className="mt-2 font-sans text-3xl font-bold tabular-nums text-ink">
           {loading ? '—' : (value ?? 0).toLocaleString()}
         </p>
       </GlassPanel>

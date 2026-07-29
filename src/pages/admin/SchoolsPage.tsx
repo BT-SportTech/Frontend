@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, resolveAssetUrl, uploadSchoolLogo } from '../../lib/api'
-import type { Paginated, School, SchoolListItem } from '../../lib/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { resolveAssetUrl } from '../../lib/api'
 import {
   emptySchoolForm,
-  formToSchoolPayload,
   schoolToForm,
 } from '../../lib/schoolForm'
 import {
@@ -14,6 +13,7 @@ import {
   writeSchoolDraft,
 } from '../../lib/schoolDraft'
 import type { SchoolFormState } from '../../interfaces/school.interface'
+import type { SchoolListItem } from '../../lib/types'
 import { Pagination } from '../../components/Pagination'
 import {
   SCHOOL_FORM_STEPS,
@@ -22,32 +22,87 @@ import {
 import { Button, GlassPanel } from '../../components/ui'
 import { DraftToast } from '../../components/ui/DraftToast'
 import { Modal } from '../../components/ui/Modal'
+import { dashboardKeys } from '../../lib/queries/dashboard'
+import {
+  deactivateSchool,
+  fetchSchool,
+  fetchSchools,
+  saveSchool,
+  schoolsKeys,
+} from '../../lib/queries/schools'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 
 export function SchoolsPage() {
+  const queryClient = useQueryClient()
   const search = useAdminSearchStore((state) => state.schools)
-  const [data, setData] = useState<SchoolListItem[]>([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [prevSearch, setPrevSearch] = useState(search)
+  const [actionError, setActionError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<SchoolFormState>(emptySchoolForm())
   const [formStep, setFormStep] = useState(0)
   const [formSessionKey, setFormSessionKey] = useState('new')
-  const [saving, setSaving] = useState(false)
   const [showDraftToast, setShowDraftToast] = useState(false)
   const [deactivateTarget, setDeactivateTarget] =
     useState<SchoolListItem | null>(null)
-  const [deactivating, setDeactivating] = useState(false)
   const skipDraftSaveRef = useRef(false)
 
-  useEffect(() => {
+  if (search !== prevSearch) {
+    setPrevSearch(search)
     setPage(1)
-  }, [search])
+  }
+
+  const listPage = search !== prevSearch ? 1 : page
+
+  const {
+    data,
+    isPending,
+    isError,
+    error: listError,
+  } = useQuery({
+    queryKey: schoolsKeys.list({ page: listPage, limit, search }),
+    queryFn: () => fetchSchools({ page: listPage, limit, search }),
+  })
+
+  const schools = data?.data ?? []
+  const total = data?.meta.total ?? 0
+  const totalPages = data?.meta.totalPages ?? 0
+
+  const invalidateSchoolQueries = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: schoolsKeys.all }),
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+    ])
+  }, [queryClient])
+
+  const saveMutation = useMutation({
+    mutationFn: saveSchool,
+    onSuccess: async () => {
+      clearSchoolDraft()
+      setShowDraftToast(false)
+      setModalOpen(false)
+      setActionError('')
+      await invalidateSchoolQueries()
+    },
+    onError: (err) => {
+      setActionError(err instanceof Error ? err.message : 'Save failed')
+    },
+  })
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => deactivateSchool(id),
+    onSuccess: async () => {
+      setDeactivateTarget(null)
+      setActionError('')
+      await invalidateSchoolQueries()
+    },
+    onError: (err) => {
+      setActionError(err instanceof Error ? err.message : 'Deactivate failed')
+      setDeactivateTarget(null)
+    },
+  })
 
   useEffect(() => {
     const draft = readSchoolDraft()
@@ -60,33 +115,6 @@ export function SchoolsPage() {
       setShowDraftToast(true)
     }
   }, [])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-      })
-      if (search) params.set('search', search)
-
-      const res = await api<Paginated<SchoolListItem>>(
-        `/schools?${params.toString()}`,
-      )
-      setData(res.data)
-      setTotal(res.meta.total)
-      setTotalPages(res.meta.totalPages)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load schools')
-    } finally {
-      setLoading(false)
-    }
-  }, [page, limit, search])
-
-  useEffect(() => {
-    void load()
-  }, [load])
 
   useEffect(() => {
     if (!modalOpen || skipDraftSaveRef.current) return
@@ -120,6 +148,7 @@ export function SchoolsPage() {
     setForm(emptySchoolForm())
     setFormStep(0)
     setFormSessionKey(`new-${Date.now()}`)
+    setActionError('')
     setModalOpen(true)
     window.setTimeout(() => {
       skipDraftSaveRef.current = false
@@ -127,9 +156,12 @@ export function SchoolsPage() {
   }
 
   async function openEdit(id: string) {
-    setError('')
+    setActionError('')
     try {
-      const school = await api<School>(`/schools/${id}`)
+      const school = await queryClient.fetchQuery({
+        queryKey: schoolsKeys.detail(id),
+        queryFn: () => fetchSchool(id),
+      })
       skipDraftSaveRef.current = true
       setEditingId(id)
       setForm(schoolToForm(school))
@@ -140,7 +172,7 @@ export function SchoolsPage() {
         skipDraftSaveRef.current = false
       }, 0)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load school')
+      setActionError(err instanceof Error ? err.message : 'Failed to load school')
     }
   }
 
@@ -170,7 +202,7 @@ export function SchoolsPage() {
         skipDraftSaveRef.current = false
       }, 0)
     } catch {
-      setError('Unable to restore the saved draft')
+      setActionError('Unable to restore the saved draft')
     }
   }
 
@@ -179,53 +211,16 @@ export function SchoolsPage() {
     setShowDraftToast(false)
   }
 
-  async function onSave(e: FormEvent) {
+  function onSave(e: FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    setError('')
-    try {
-      let logoUrl = form.logoUrl.trim()
-      if (form.logoFile) {
-        const uploaded = await uploadSchoolLogo(form.logoFile)
-        logoUrl = uploaded.url
-      }
-
-      const payload = {
-        ...formToSchoolPayload(form),
-        logoUrl: logoUrl || undefined,
-      }
-
-      if (editingId) {
-        await api(`/schools/${editingId}`, { method: 'PATCH', body: payload })
-      } else {
-        await api('/schools', { method: 'POST', body: payload })
-      }
-
-      clearSchoolDraft()
-      setShowDraftToast(false)
-      setModalOpen(false)
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSaving(false)
-    }
+    setActionError('')
+    saveMutation.mutate({ editingId, form })
   }
 
-  async function confirmDeactivate() {
+  function confirmDeactivate() {
     if (!deactivateTarget) return
-    setDeactivating(true)
-    setError('')
-    try {
-      await api(`/schools/${deactivateTarget.id}`, { method: 'DELETE' })
-      setDeactivateTarget(null)
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Deactivate failed')
-      setDeactivateTarget(null)
-    } finally {
-      setDeactivating(false)
-    }
+    setActionError('')
+    deactivateMutation.mutate(deactivateTarget.id)
   }
 
   function setField<K extends keyof SchoolFormState>(
@@ -234,6 +229,17 @@ export function SchoolsPage() {
   ) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
+
+  const errorMessage = actionError
+    ? actionError
+    : isError
+      ? listError instanceof Error
+        ? listError.message
+        : 'Failed to load schools'
+      : ''
+
+  const saving = saveMutation.isPending
+  const deactivating = deactivateMutation.isPending
 
   return (
     <div className="space-y-6">
@@ -249,9 +255,9 @@ export function SchoolsPage() {
         <Button onClick={openCreate}>Add school</Button>
       </div>
 
-      {error ? (
+      {errorMessage ? (
         <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-          {error}
+          {errorMessage}
         </p>
       ) : null}
 
@@ -272,7 +278,7 @@ export function SchoolsPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isPending ? (
                 <tr>
                   <td
                     colSpan={9}
@@ -281,7 +287,7 @@ export function SchoolsPage() {
                     Loading…
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : schools.length === 0 ? (
                 <tr>
                   <td
                     colSpan={9}
@@ -291,7 +297,7 @@ export function SchoolsPage() {
                   </td>
                 </tr>
               ) : (
-                data.map((s) => (
+                schools.map((s) => (
                   <tr
                     key={s.id}
                     className="border-b border-line/50 transition hover:bg-accent/25"
@@ -411,7 +417,7 @@ export function SchoolsPage() {
         </div>
         <div className="px-4 pb-4">
           <Pagination
-            page={page}
+            page={listPage}
             totalPages={totalPages}
             total={total}
             onPageChange={setPage}
@@ -474,7 +480,7 @@ export function SchoolsPage() {
           <Button
             variant="danger"
             disabled={deactivating}
-            onClick={() => void confirmDeactivate()}
+            onClick={confirmDeactivate}
           >
             {deactivating ? 'Deactivating…' : 'Deactivate'}
           </Button>

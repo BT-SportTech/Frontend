@@ -1,48 +1,31 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api } from '../../lib/api'
-import type { Paginated, UserListItem } from '../../lib/types'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Pagination } from '../../components/Pagination'
 import { GlassPanel } from '../../components/ui'
+import { fetchUsers, usersKeys } from '../../lib/queries/users'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 
 export function UsersPage() {
   const search = useAdminSearchStore((state) => state.users)
-  const [data, setData] = useState<UserListItem[]>([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [prevSearch, setPrevSearch] = useState(search)
 
-  useEffect(() => {
+  if (search !== prevSearch) {
+    setPrevSearch(search)
     setPage(1)
-  }, [search])
+  }
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-      })
-      if (search) params.set('search', search)
+  const listPage = search !== prevSearch ? 1 : page
 
-      const res = await api<Paginated<UserListItem>>(`/users?${params.toString()}`)
-      setData(res.data)
-      setTotal(res.meta.total)
-      setTotalPages(res.meta.totalPages)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users')
-    } finally {
-      setLoading(false)
-    }
-  }, [page, limit, search])
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: usersKeys.list({ page: listPage, limit, search }),
+    queryFn: () => fetchUsers({ page: listPage, limit, search }),
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const users = data?.data ?? []
+  const total = data?.meta.total ?? 0
+  const totalPages = data?.meta.totalPages ?? 0
 
   return (
     <div className="space-y-6">
@@ -53,9 +36,9 @@ export function UsersPage() {
         </p>
       </div>
 
-      {error ? (
+      {isError ? (
         <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-          {error}
+          {error instanceof Error ? error.message : 'Failed to load users'}
         </p>
       ) : null}
 
@@ -72,7 +55,7 @@ export function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isPending ? (
                 <tr>
                   <td
                     colSpan={5}
@@ -81,7 +64,7 @@ export function UsersPage() {
                     Loading…
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5}
@@ -91,7 +74,7 @@ export function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                data.map((u) => (
+                users.map((u) => (
                   <tr
                     key={u.id}
                     className="border-b border-line/50 transition hover:bg-accent/25"
@@ -117,7 +100,7 @@ export function UsersPage() {
         </div>
         <div className="px-4 pb-4">
           <Pagination
-            page={page}
+            page={listPage}
             totalPages={totalPages}
             total={total}
             onPageChange={setPage}
