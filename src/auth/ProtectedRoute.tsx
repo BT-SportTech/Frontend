@@ -1,8 +1,13 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from './AuthContext'
+import {
+  selectIsAdmin,
+  selectIsAuthenticated,
+  useAuthStore,
+} from '../stores/useAuthStore'
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isAdmin } = useAuth()
+  const isAuthenticated = useAuthStore(selectIsAuthenticated)
+  const isAdmin = useAuthStore(selectIsAdmin)
   const location = useLocation()
 
   if (!isAuthenticated || !isAdmin) {

@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
 import { Button } from '../components/ui'
+import { selectUser, useAuthStore } from '../stores/useAuthStore'
 
 const nav = [
   { to: '/admin', label: 'Overview', end: true },
@@ -9,7 +9,8 @@ const nav = [
 ]
 
 export function AdminLayout() {
-  const { user, logout } = useAuth()
+  const user = useAuthStore(selectUser)
+  const logout = useAuthStore((state) => state.logout)
 
   return (
     <div className="app-backdrop flex min-h-full">
