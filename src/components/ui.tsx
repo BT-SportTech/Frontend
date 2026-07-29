@@ -28,10 +28,11 @@ export function FieldLabel({ children }: { children: ReactNode }) {
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   const { className = '', ...rest } = props
+  const hasWidth = /\bw-/.test(className)
   return (
     <input
       {...rest}
-      className={`w-full rounded-none border border-line/80 bg-white/50 px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary/40 focus:bg-white/70 focus:ring-2 focus:ring-primary/20 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} rounded-none border border-line/80 bg-white/50 px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary/40 focus:bg-white/70 focus:ring-2 focus:ring-primary/20 ${className}`}
     />
   )
 }
@@ -40,10 +41,11 @@ export function SelectInput(
   props: React.SelectHTMLAttributes<HTMLSelectElement>,
 ) {
   const { className = '', children, ...rest } = props
+  const hasWidth = /\bw-/.test(className)
   return (
     <select
       {...rest}
-      className={`w-full rounded-none border border-line/80 bg-white/50 px-3.5 py-2.5 text-ink outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} rounded-none border border-line/80 bg-white/50 px-3.5 py-2.5 text-ink outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20 ${className}`}
     >
       {children}
     </select>

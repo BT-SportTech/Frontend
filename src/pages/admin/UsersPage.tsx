@@ -1,27 +1,23 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import type { Paginated, UserListItem, UserRole } from '../../lib/types'
+import type { Paginated, UserListItem } from '../../lib/types'
 import { Pagination } from '../../components/Pagination'
-import {
-  Button,
-  GlassPanel,
-  SelectInput,
-  TextInput,
-} from '../../components/ui'
-
-const ROLES: UserRole[] = ['STUDENT', 'PROFESSIONAL', 'ADMIN']
+import { GlassPanel } from '../../components/ui'
+import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 
 export function UsersPage() {
+  const search = useAdminSearchStore((state) => state.users)
   const [data, setData] = useState<UserListItem[]>([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [role, setRole] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -32,7 +28,6 @@ export function UsersPage() {
         limit: String(limit),
       })
       if (search) params.set('search', search)
-      if (role) params.set('role', role)
 
       const res = await api<Paginated<UserListItem>>(`/users?${params.toString()}`)
       setData(res.data)
@@ -43,7 +38,7 @@ export function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, limit, search, role])
+  }, [page, limit, search])
 
   useEffect(() => {
     void load()
@@ -57,42 +52,6 @@ export function UsersPage() {
           Browse students, professionals, and admins
         </p>
       </div>
-
-      <GlassPanel strong className="p-4 sm:p-5">
-        <form
-          className="flex flex-wrap gap-3"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault()
-            setPage(1)
-            setSearch(searchInput.trim())
-          }}
-        >
-          <TextInput
-            className="min-w-[200px] flex-1"
-            placeholder="Search name, email, phone…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <SelectInput
-            className="w-44"
-            value={role}
-            onChange={(e) => {
-              setPage(1)
-              setRole(e.target.value)
-            }}
-          >
-            <option value="">All roles</option>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </SelectInput>
-          <Button type="submit" variant="ghost">
-            Search
-          </Button>
-        </form>
-      </GlassPanel>
 
       {error ? (
         <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">

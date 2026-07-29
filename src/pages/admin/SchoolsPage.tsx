@@ -9,6 +9,7 @@ import {
   SelectInput,
   TextInput,
 } from '../../components/ui'
+import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 
 const SCHOOL_TYPES: SchoolType[] = [
   'PUBLIC',
@@ -47,20 +48,22 @@ const emptyForm = (): SchoolFormState => ({
 })
 
 export function SchoolsPage() {
+  const search = useAdminSearchStore((state) => state.schools)
   const [data, setData] = useState<SchoolListItem[]>([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [type, setType] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<SchoolFormState>(emptyForm)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -71,7 +74,6 @@ export function SchoolsPage() {
         limit: String(limit),
       })
       if (search) params.set('search', search)
-      if (type) params.set('type', type)
 
       const res = await api<Paginated<SchoolListItem>>(
         `/schools?${params.toString()}`,
@@ -84,7 +86,7 @@ export function SchoolsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, limit, search, type])
+  }, [page, limit, search])
 
   useEffect(() => {
     void load()
@@ -178,42 +180,6 @@ export function SchoolsPage() {
         </div>
         <Button onClick={openCreate}>Add school</Button>
       </div>
-
-      <GlassPanel strong className="p-4 sm:p-5">
-        <form
-          className="flex flex-wrap gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setSearch(searchInput.trim())
-          }}
-        >
-          <TextInput
-            className="min-w-[200px] flex-1"
-            placeholder="Search name, city, code…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <SelectInput
-            className="w-44"
-            value={type}
-            onChange={(e) => {
-              setPage(1)
-              setType(e.target.value)
-            }}
-          >
-            <option value="">All types</option>
-            {SCHOOL_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t.replaceAll('_', ' ')}
-              </option>
-            ))}
-          </SelectInput>
-          <Button type="submit" variant="ghost">
-            Search
-          </Button>
-        </form>
-      </GlassPanel>
 
       {error ? (
         <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">

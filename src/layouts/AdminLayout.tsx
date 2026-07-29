@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { AdminHeaderSearch } from '../components/admin/AdminHeaderSearch'
 import { Button } from '../components/ui'
 import { selectUser, useAuthStore } from '../stores/useAuthStore'
 
@@ -57,8 +58,13 @@ export function AdminLayout() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-10 border-b border-white/40 px-6 py-4 backdrop-blur-xl">
-          <p className="text-sm font-medium text-ink/55">SportTech Admin Console</p>
+        <header className="glass sticky top-0 z-10 border-b border-white/40 px-6 py-3.5 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-ink/55">
+              SportTech Admin Console
+            </p>
+            <AdminHeaderSearch />
+          </div>
         </header>
         <div className="animate-fade-in flex-1 p-6 lg:p-8">
           <Outlet />
