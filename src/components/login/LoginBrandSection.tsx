@@ -6,9 +6,10 @@ export function LoginBrandSection() {
       <img
         src={loginSection}
         alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center"
+        className="absolute inset-0 h-full w-full object-cover object-center brightness-75"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/50 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-black/25" />
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/45 via-transparent to-transparent" />
       <div className="relative z-10 animate-fade-in">
         <p className="font-display text-5xl font-bold tracking-tight text-white drop-shadow-sm sm:text-6xl lg:text-7xl">
           SportTech

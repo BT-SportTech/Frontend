@@ -1,4 +1,4 @@
-import { Button, GlassPanel } from '../ui'
+import { Button } from '../ui'
 import { useLoginForm } from '../../hooks/useLoginForm'
 import { LoginFormField } from './LoginFormField'
 
@@ -8,7 +8,7 @@ export function LoginForm() {
 
   return (
     <section className="relative flex flex-1 items-center justify-center app-backdrop px-6 py-12 lg:px-12">
-      <GlassPanel strong className="animate-rise w-full max-w-md p-8 sm:p-10">
+      <div className="animate-rise w-full max-w-md">
         <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
           Sign in
         </h1>
@@ -41,7 +41,7 @@ export function LoginForm() {
 
           {submitError ? (
             <p
-              className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700"
+              className="border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700"
               role="alert"
             >
               {submitError}
@@ -52,7 +52,7 @@ export function LoginForm() {
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
-      </GlassPanel>
+      </div>
     </section>
   )
 }
