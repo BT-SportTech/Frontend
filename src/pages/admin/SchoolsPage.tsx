@@ -9,6 +9,7 @@ import {
   SelectInput,
   TextInput,
 } from '../../components/ui'
+import { Modal } from '../../components/ui/Modal'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 
 const SCHOOL_TYPES: SchoolType[] = [
@@ -91,6 +92,10 @@ export function SchoolsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false)
+  }, [])
 
   function openCreate() {
     setEditingId(null)
@@ -261,121 +266,128 @@ export function SchoolsPage() {
         </div>
       </GlassPanel>
 
-      {modalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm">
-          <GlassPanel strong className="animate-rise max-h-[90vh] w-full max-w-lg overflow-y-auto p-6">
-            <h2 className="font-display text-xl font-semibold text-ink">
-              {editingId ? 'Edit school' : 'Add school'}
-            </h2>
-            <form onSubmit={onSave} className="mt-5 space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <FieldLabel>School name</FieldLabel>
-                  <TextInput
-                    required
-                    value={form.name}
-                    onChange={(e) => setField('name', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Code</FieldLabel>
-                  <TextInput
-                    required
-                    value={form.code}
-                    onChange={(e) => setField('code', e.target.value)}
-                    disabled={Boolean(editingId)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Type</FieldLabel>
-                  <SelectInput
-                    value={form.type}
-                    onChange={(e) =>
-                      setField('type', e.target.value as SchoolType)
-                    }
-                  >
-                    {SCHOOL_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t.replaceAll('_', ' ')}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </div>
-                <div>
-                  <FieldLabel>Email</FieldLabel>
-                  <TextInput
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setField('email', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Contact</FieldLabel>
-                  <TextInput
-                    value={form.contactNumber}
-                    onChange={(e) => setField('contactNumber', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Principal</FieldLabel>
-                  <TextInput
-                    value={form.principalName}
-                    onChange={(e) => setField('principalName', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Website</FieldLabel>
-                  <TextInput
-                    value={form.website}
-                    onChange={(e) => setField('website', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>State</FieldLabel>
-                  <TextInput
-                    value={form.state}
-                    onChange={(e) => setField('state', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>District</FieldLabel>
-                  <TextInput
-                    value={form.district}
-                    onChange={(e) => setField('district', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>City</FieldLabel>
-                  <TextInput
-                    value={form.city}
-                    onChange={(e) => setField('city', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Pincode</FieldLabel>
-                  <TextInput
-                    value={form.pincode}
-                    onChange={(e) => setField('pincode', e.target.value)}
-                  />
-                </div>
-              </div>
+      <Modal
+        open={modalOpen}
+        title={editingId ? 'Edit school' : 'Add school'}
+        onClose={closeModal}
+      >
+        <form onSubmit={onSave} className="mt-5 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <FieldLabel>School name</FieldLabel>
+              <TextInput
+                required
+                value={form.name}
+                onChange={(e) => setField('name', e.target.value)}
+                placeholder="Enter school name"
+              />
+            </div>
+            <div>
+              <FieldLabel>Code</FieldLabel>
+              <TextInput
+                required
+                value={form.code}
+                onChange={(e) => setField('code', e.target.value)}
+                disabled={Boolean(editingId)}
+                placeholder="e.g. ST001"
+              />
+            </div>
+            <div>
+              <FieldLabel>Type</FieldLabel>
+              <SelectInput
+                value={form.type}
+                onChange={(e) =>
+                  setField('type', e.target.value as SchoolType)
+                }
+              >
+                {SCHOOL_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t.replaceAll('_', ' ')}
+                  </option>
+                ))}
+              </SelectInput>
+            </div>
+            <div>
+              <FieldLabel>Email</FieldLabel>
+              <TextInput
+                type="email"
+                value={form.email}
+                onChange={(e) => setField('email', e.target.value)}
+                placeholder="school@example.com"
+              />
+            </div>
+            <div>
+              <FieldLabel>Contact</FieldLabel>
+              <TextInput
+                value={form.contactNumber}
+                onChange={(e) => setField('contactNumber', e.target.value)}
+                placeholder="+91 98765 43210"
+              />
+            </div>
+            <div>
+              <FieldLabel>Principal</FieldLabel>
+              <TextInput
+                value={form.principalName}
+                onChange={(e) => setField('principalName', e.target.value)}
+                placeholder="Principal name"
+              />
+            </div>
+            <div>
+              <FieldLabel>Website</FieldLabel>
+              <TextInput
+                value={form.website}
+                onChange={(e) => setField('website', e.target.value)}
+                placeholder="https://www.example.com"
+              />
+            </div>
+            <div>
+              <FieldLabel>State</FieldLabel>
+              <TextInput
+                value={form.state}
+                onChange={(e) => setField('state', e.target.value)}
+                placeholder="Karnataka"
+              />
+            </div>
+            <div>
+              <FieldLabel>District</FieldLabel>
+              <TextInput
+                value={form.district}
+                onChange={(e) => setField('district', e.target.value)}
+                placeholder="Bengaluru Urban"
+              />
+            </div>
+            <div>
+              <FieldLabel>City</FieldLabel>
+              <TextInput
+                value={form.city}
+                onChange={(e) => setField('city', e.target.value)}
+                placeholder="Bengaluru"
+              />
+            </div>
+            <div>
+              <FieldLabel>Pincode</FieldLabel>
+              <TextInput
+                value={form.pincode}
+                onChange={(e) => setField('pincode', e.target.value)}
+                placeholder="560001"
+              />
+            </div>
+          </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving…' : 'Save'}
-                </Button>
-              </div>
-            </form>
-          </GlassPanel>
-        </div>
-      ) : null}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeModal}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }
