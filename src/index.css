@@ -88,7 +88,8 @@
   }
 
   .modal-content input,
-  .modal-content select {
+  .modal-content select,
+  .modal-content textarea {
     font-family: var(--font-modal);
     font-size: 0.9375rem;
     font-weight: 500;

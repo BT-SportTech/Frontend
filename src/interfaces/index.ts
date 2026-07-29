@@ -12,3 +12,5 @@ export type {
   AdminSearchStoreState,
   AdminSearchTab,
 } from './admin-search.interface'
+
+export type { SchoolFormState } from './school.interface'

@@ -1,5 +1,16 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
+export function getApiBaseUrl() {
+  return API_BASE
+}
+
+export function resolveAssetUrl(url: string): string {
+  if (!url) return ''
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:'))
+    return url
+  return `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`
+}
+
 const ACCESS_KEY = 'sporttech_access_token'
 const REFRESH_KEY = 'sporttech_refresh_token'
 
@@ -104,4 +115,42 @@ export async function api<T>(
 
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
+}
+
+export async function uploadSchoolLogo(
+  file: File,
+): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const token = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const res = await fetch(`${API_BASE}/schools/upload-logo`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+
+  if (res.status === 401) {
+    const ok = await tryRefresh()
+    if (ok) return uploadSchoolLogo(file)
+    clearTokens()
+    throw new Error('Session expired. Please sign in again.')
+  }
+
+  if (!res.ok) {
+    let message = `Upload failed (${res.status})`
+    try {
+      const err = (await res.json()) as { message?: string | string[] }
+      if (Array.isArray(err.message)) message = err.message.join(', ')
+      else if (err.message) message = err.message
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message)
+  }
+
+  return (await res.json()) as { url: string }
 }

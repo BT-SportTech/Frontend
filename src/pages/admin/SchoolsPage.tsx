@@ -1,52 +1,28 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api } from '../../lib/api'
-import type { Paginated, School, SchoolListItem, SchoolType } from '../../lib/types'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { api, uploadSchoolLogo } from '../../lib/api'
+import type { Paginated, School, SchoolListItem } from '../../lib/types'
+import {
+  emptySchoolForm,
+  formToSchoolPayload,
+  schoolToForm,
+} from '../../lib/schoolForm'
+import {
+  clearSchoolDraft,
+  draftToFormState,
+  hasMeaningfulSchoolDraft,
+  readSchoolDraft,
+  writeSchoolDraft,
+} from '../../lib/schoolDraft'
+import type { SchoolFormState } from '../../interfaces/school.interface'
 import { Pagination } from '../../components/Pagination'
 import {
-  Button,
-  FieldLabel,
-  GlassPanel,
-  SelectInput,
-  TextInput,
-} from '../../components/ui'
+  SCHOOL_FORM_STEPS,
+  SchoolFormStepper,
+} from '../../components/schools'
+import { Button, GlassPanel } from '../../components/ui'
+import { DraftToast } from '../../components/ui/DraftToast'
 import { Modal } from '../../components/ui/Modal'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
-
-const SCHOOL_TYPES: SchoolType[] = [
-  'PUBLIC',
-  'PRIVATE',
-  'INTERNATIONAL',
-  'RESIDENTIAL',
-  'GOVERNMENT_AIDED',
-]
-
-interface SchoolFormState {
-  name: string
-  code: string
-  type: SchoolType
-  email: string
-  contactNumber: string
-  state: string
-  district: string
-  city: string
-  pincode: string
-  principalName: string
-  website: string
-}
-
-const emptyForm = (): SchoolFormState => ({
-  name: '',
-  code: '',
-  type: 'PRIVATE',
-  email: '',
-  contactNumber: '',
-  state: '',
-  district: '',
-  city: '',
-  pincode: '',
-  principalName: '',
-  website: '',
-})
 
 export function SchoolsPage() {
   const search = useAdminSearchStore((state) => state.schools)
@@ -59,12 +35,28 @@ export function SchoolsPage() {
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<SchoolFormState>(emptyForm)
+  const [form, setForm] = useState<SchoolFormState>(emptySchoolForm())
+  const [formStep, setFormStep] = useState(0)
+  const [formSessionKey, setFormSessionKey] = useState('new')
   const [saving, setSaving] = useState(false)
+  const [showDraftToast, setShowDraftToast] = useState(false)
+  const skipDraftSaveRef = useRef(false)
 
   useEffect(() => {
     setPage(1)
   }, [search])
+
+  useEffect(() => {
+    const draft = readSchoolDraft()
+    if (!draft) return
+    const restoredForm = { ...emptySchoolForm(), ...draft.form, logoFile: null }
+    if (
+      hasMeaningfulSchoolDraft(restoredForm, draft.step) ||
+      Boolean(draft.logoDraftDataUrl)
+    ) {
+      setShowDraftToast(true)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -93,38 +85,95 @@ export function SchoolsPage() {
     void load()
   }, [load])
 
-  const closeModal = useCallback(() => {
+  useEffect(() => {
+    if (!modalOpen || skipDraftSaveRef.current) return
+    if (!hasMeaningfulSchoolDraft(form, formStep) && !form.logoFile) return
+
+    const handle = window.setTimeout(() => {
+      void writeSchoolDraft({
+        editingId,
+        step: formStep,
+        form,
+      })
+    }, 350)
+
+    return () => window.clearTimeout(handle)
+  }, [modalOpen, editingId, form, formStep])
+
+  const persistDraftAndClose = useCallback(() => {
+    if (hasMeaningfulSchoolDraft(form, formStep) || form.logoFile) {
+      void writeSchoolDraft({
+        editingId,
+        step: formStep,
+        form,
+      }).then(() => setShowDraftToast(true))
+    }
     setModalOpen(false)
-  }, [])
+  }, [editingId, form, formStep])
 
   function openCreate() {
+    skipDraftSaveRef.current = true
     setEditingId(null)
-    setForm(emptyForm())
+    setForm(emptySchoolForm())
+    setFormStep(0)
+    setFormSessionKey(`new-${Date.now()}`)
     setModalOpen(true)
+    window.setTimeout(() => {
+      skipDraftSaveRef.current = false
+    }, 0)
   }
 
   async function openEdit(id: string) {
     setError('')
     try {
       const school = await api<School>(`/schools/${id}`)
+      skipDraftSaveRef.current = true
       setEditingId(id)
-      setForm({
-        name: school.name ?? '',
-        code: school.code ?? '',
-        type: school.type ?? 'PRIVATE',
-        email: school.email ?? '',
-        contactNumber: school.contactNumber ?? '',
-        state: school.state ?? '',
-        district: school.district ?? '',
-        city: school.city ?? '',
-        pincode: school.pincode ?? '',
-        principalName: school.principalName ?? '',
-        website: school.website ?? '',
-      })
+      setForm(schoolToForm(school))
+      setFormStep(0)
+      setFormSessionKey(`edit-${id}-${Date.now()}`)
       setModalOpen(true)
+      window.setTimeout(() => {
+        skipDraftSaveRef.current = false
+      }, 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load school')
     }
+  }
+
+  async function resumeDraft() {
+    const draft = readSchoolDraft()
+    if (!draft) {
+      setShowDraftToast(false)
+      return
+    }
+
+    try {
+      skipDraftSaveRef.current = true
+      const restored = await draftToFormState(draft)
+      const safeStep = Math.min(
+        Math.max(draft.step, 0),
+        SCHOOL_FORM_STEPS.length - 1,
+      )
+      setEditingId(draft.editingId)
+      setForm(restored)
+      setFormStep(safeStep)
+      setFormSessionKey(
+        `draft-${draft.editingId ?? 'new'}-${draft.updatedAt}`,
+      )
+      setShowDraftToast(false)
+      setModalOpen(true)
+      window.setTimeout(() => {
+        skipDraftSaveRef.current = false
+      }, 0)
+    } catch {
+      setError('Unable to restore the saved draft')
+    }
+  }
+
+  function dismissDraft() {
+    clearSchoolDraft()
+    setShowDraftToast(false)
   }
 
   async function onSave(e: FormEvent) {
@@ -132,18 +181,15 @@ export function SchoolsPage() {
     setSaving(true)
     setError('')
     try {
+      let logoUrl = form.logoUrl.trim()
+      if (form.logoFile) {
+        const uploaded = await uploadSchoolLogo(form.logoFile)
+        logoUrl = uploaded.url
+      }
+
       const payload = {
-        name: form.name,
-        code: form.code,
-        type: form.type,
-        email: form.email || undefined,
-        contactNumber: form.contactNumber || undefined,
-        state: form.state || undefined,
-        district: form.district || undefined,
-        city: form.city || undefined,
-        pincode: form.pincode || undefined,
-        principalName: form.principalName || undefined,
-        website: form.website || undefined,
+        ...formToSchoolPayload(form),
+        logoUrl: logoUrl || undefined,
       }
 
       if (editingId) {
@@ -151,6 +197,9 @@ export function SchoolsPage() {
       } else {
         await api('/schools', { method: 'POST', body: payload })
       }
+
+      clearSchoolDraft()
+      setShowDraftToast(false)
       setModalOpen(false)
       await load()
     } catch (err) {
@@ -170,7 +219,10 @@ export function SchoolsPage() {
     }
   }
 
-  function setField<K extends keyof SchoolFormState>(key: K, value: SchoolFormState[K]) {
+  function setField<K extends keyof SchoolFormState>(
+    key: K,
+    value: SchoolFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -178,7 +230,9 @@ export function SchoolsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Schools</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+            Schools
+          </h1>
           <p className="mt-1.5 text-sm text-ink/55">
             Register and manage school profiles
           </p>
@@ -269,125 +323,27 @@ export function SchoolsPage() {
       <Modal
         open={modalOpen}
         title={editingId ? 'Edit school' : 'Add school'}
-        onClose={closeModal}
+        onClose={persistDraftAndClose}
+        className="max-w-3xl"
       >
-        <form onSubmit={onSave} className="mt-5 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <FieldLabel>School name</FieldLabel>
-              <TextInput
-                required
-                value={form.name}
-                onChange={(e) => setField('name', e.target.value)}
-                placeholder="Enter school name"
-              />
-            </div>
-            <div>
-              <FieldLabel>Code</FieldLabel>
-              <TextInput
-                required
-                value={form.code}
-                onChange={(e) => setField('code', e.target.value)}
-                disabled={Boolean(editingId)}
-                placeholder="e.g. ST001"
-              />
-            </div>
-            <div>
-              <FieldLabel>Type</FieldLabel>
-              <SelectInput
-                value={form.type}
-                onChange={(e) =>
-                  setField('type', e.target.value as SchoolType)
-                }
-              >
-                {SCHOOL_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </SelectInput>
-            </div>
-            <div>
-              <FieldLabel>Email</FieldLabel>
-              <TextInput
-                type="email"
-                value={form.email}
-                onChange={(e) => setField('email', e.target.value)}
-                placeholder="school@example.com"
-              />
-            </div>
-            <div>
-              <FieldLabel>Contact</FieldLabel>
-              <TextInput
-                value={form.contactNumber}
-                onChange={(e) => setField('contactNumber', e.target.value)}
-                placeholder="+91 98765 43210"
-              />
-            </div>
-            <div>
-              <FieldLabel>Principal</FieldLabel>
-              <TextInput
-                value={form.principalName}
-                onChange={(e) => setField('principalName', e.target.value)}
-                placeholder="Principal name"
-              />
-            </div>
-            <div>
-              <FieldLabel>Website</FieldLabel>
-              <TextInput
-                value={form.website}
-                onChange={(e) => setField('website', e.target.value)}
-                placeholder="https://www.example.com"
-              />
-            </div>
-            <div>
-              <FieldLabel>State</FieldLabel>
-              <TextInput
-                value={form.state}
-                onChange={(e) => setField('state', e.target.value)}
-                placeholder="Karnataka"
-              />
-            </div>
-            <div>
-              <FieldLabel>District</FieldLabel>
-              <TextInput
-                value={form.district}
-                onChange={(e) => setField('district', e.target.value)}
-                placeholder="Bengaluru Urban"
-              />
-            </div>
-            <div>
-              <FieldLabel>City</FieldLabel>
-              <TextInput
-                value={form.city}
-                onChange={(e) => setField('city', e.target.value)}
-                placeholder="Bengaluru"
-              />
-            </div>
-            <div>
-              <FieldLabel>Pincode</FieldLabel>
-              <TextInput
-                value={form.pincode}
-                onChange={(e) => setField('pincode', e.target.value)}
-                placeholder="560001"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={closeModal}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-        </form>
+        <SchoolFormStepper
+          form={form}
+          editing={Boolean(editingId)}
+          saving={saving}
+          resetKey={formSessionKey}
+          initialStep={formStep}
+          onStepChange={setFormStep}
+          onChange={setField}
+          onSubmit={onSave}
+          onCancel={persistDraftAndClose}
+        />
       </Modal>
+
+      <DraftToast
+        open={showDraftToast && !modalOpen}
+        onResume={() => void resumeDraft()}
+        onDismiss={dismissDraft}
+      />
     </div>
   )
 }

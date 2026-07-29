@@ -52,6 +52,41 @@ export function SelectInput(
   )
 }
 
+export function TextArea(
+  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+) {
+  const { className = '', ...rest } = props
+  const hasWidth = /\bw-/.test(className)
+  return (
+    <textarea
+      {...rest}
+      className={`${hasWidth ? '' : 'w-full'} rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary focus:ring-2 focus:ring-primary/15 ${className}`}
+    />
+  )
+}
+
+export function CheckboxField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex items-center gap-2.5 text-sm font-medium text-ink/75">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 rounded border-line text-primary focus:ring-primary/20"
+      />
+      {label}
+    </label>
+  )
+}
+
 export function Button({
   variant = 'primary',
   className = '',

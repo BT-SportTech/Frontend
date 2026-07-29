@@ -8,6 +8,7 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   className?: string
+  panelClassName?: string
 }
 
 export function Modal({
@@ -15,7 +16,8 @@ export function Modal({
   title,
   onClose,
   children,
-  className = '',
+  className = 'max-w-lg',
+  panelClassName = '',
 }: ModalProps) {
   useEffect(() => {
     if (!open) return
@@ -51,18 +53,41 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative z-10 w-full max-w-lg"
+        className={`relative z-10 w-full ${className}`}
       >
         <GlassPanel
           strong
-          className={`modal-content animate-rise max-h-[90vh] overflow-y-auto p-6 shadow-2xl shadow-ink/20 ${className}`}
+          className={`modal-content animate-rise max-h-[90vh] overflow-y-auto p-6 shadow-2xl shadow-ink/20 ${panelClassName}`}
         >
-          <h2
-            id="modal-title"
-            className="text-[1.375rem] font-semibold tracking-tight text-ink"
-          >
-            {title}
-          </h2>
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <h2
+              id="modal-title"
+              className="text-[1.375rem] font-semibold tracking-tight text-ink"
+            >
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink/50 transition hover:bg-line/60 hover:text-ink"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>
           {children}
         </GlassPanel>
       </div>
