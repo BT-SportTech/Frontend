@@ -9,7 +9,7 @@ export function LoginForm() {
   return (
     <section className="relative flex flex-1 items-center justify-center app-backdrop px-6 py-12 lg:px-12">
       <div className="animate-rise w-full max-w-md">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
           Sign in
         </h1>
         <p className="mt-1.5 text-sm text-ink/55">

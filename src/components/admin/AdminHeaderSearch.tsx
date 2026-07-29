@@ -49,7 +49,7 @@ export function AdminHeaderSearch() {
 
   return (
     <TextInput
-      className="w-72 max-w-full"
+      className="w-full py-3 text-base"
       type="search"
       placeholder={TAB_CONFIG[tab].placeholder}
       value={draft}

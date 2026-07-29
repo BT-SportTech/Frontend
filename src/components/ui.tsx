@@ -20,7 +20,7 @@ export function GlassPanel({
 
 export function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <label className="mb-1.5 block text-sm font-medium text-ink/80">
+    <label className="mb-1.5 block text-sm font-medium text-ink/70">
       {children}
     </label>
   )
@@ -32,7 +32,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...rest}
-      className={`${hasWidth ? '' : 'w-full'} rounded-none border border-line/80 bg-white/50 px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary/40 focus:bg-white/70 focus:ring-2 focus:ring-primary/20 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary focus:ring-2 focus:ring-primary/15 ${className}`}
     />
   )
 }
@@ -45,7 +45,7 @@ export function SelectInput(
   return (
     <select
       {...rest}
-      className={`${hasWidth ? '' : 'w-full'} rounded-none border border-line/80 bg-white/50 px-3.5 py-2.5 text-ink outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 ${className}`}
     >
       {children}
     </select>
@@ -61,11 +61,11 @@ export function Button({
 }) {
   const styles = {
     primary:
-      'bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20',
+      'bg-primary text-white hover:bg-[#1a43be] shadow-sm shadow-primary/20',
     secondary:
-      'bg-secondary text-white hover:bg-secondary/90 shadow-md shadow-secondary/20',
-    ghost: 'bg-white/40 text-ink hover:bg-white/70 border border-line/70',
-    danger: 'bg-red-600/90 text-white hover:bg-red-600',
+      'bg-secondary text-white hover:bg-[#0c635c] shadow-sm shadow-secondary/20',
+    ghost: 'bg-white text-ink hover:bg-accent/50 border border-line',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
   }[variant]
 
   return (
