@@ -13,7 +13,7 @@ export function Pagination({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
-      <p className="text-sm text-ink/55">
+      <p className="text-sm font-medium text-ink/75">
         {total} result{total === 1 ? '' : 's'} · Page {page} of{' '}
         {Math.max(totalPages, 1)}
       </p>

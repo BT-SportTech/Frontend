@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, uploadSchoolLogo } from '../../lib/api'
+import { api, resolveAssetUrl, uploadSchoolLogo } from '../../lib/api'
 import type { Paginated, School, SchoolListItem } from '../../lib/types'
 import {
   emptySchoolForm,
@@ -40,6 +40,9 @@ export function SchoolsPage() {
   const [formSessionKey, setFormSessionKey] = useState('new')
   const [saving, setSaving] = useState(false)
   const [showDraftToast, setShowDraftToast] = useState(false)
+  const [deactivateTarget, setDeactivateTarget] =
+    useState<SchoolListItem | null>(null)
+  const [deactivating, setDeactivating] = useState(false)
   const skipDraftSaveRef = useRef(false)
 
   useEffect(() => {
@@ -209,13 +212,19 @@ export function SchoolsPage() {
     }
   }
 
-  async function deactivate(id: string) {
-    if (!confirm('Deactivate this school?')) return
+  async function confirmDeactivate() {
+    if (!deactivateTarget) return
+    setDeactivating(true)
+    setError('')
     try {
-      await api(`/schools/${id}`, { method: 'DELETE' })
+      await api(`/schools/${deactivateTarget.id}`, { method: 'DELETE' })
+      setDeactivateTarget(null)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Deactivate failed')
+      setDeactivateTarget(null)
+    } finally {
+      setDeactivating(false)
     }
   }
 
@@ -247,27 +256,37 @@ export function SchoolsPage() {
       ) : null}
 
       <GlassPanel strong className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-line/70 bg-white/30 text-ink/60">
+        <div className="min-h-[28rem] overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-left text-sm text-ink">
+            <thead className="border-b border-line bg-accent/40 text-ink/80">
               <tr>
-                <th className="px-4 py-3 font-semibold">Name</th>
+                <th className="px-4 py-3 font-semibold">School</th>
                 <th className="px-4 py-3 font-semibold">Code</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
+                <th className="px-4 py-3 font-semibold">Contact</th>
+                <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Location</th>
+                <th className="px-4 py-3 font-semibold">Pincode</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-ink/45">
+                  <td
+                    colSpan={9}
+                    className="h-[24rem] px-4 text-center align-middle text-ink/60"
+                  >
                     Loading…
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-ink/45">
+                  <td
+                    colSpan={9}
+                    className="h-[24rem] px-4 text-center align-middle text-ink/60"
+                  >
                     No schools found
                   </td>
                 </tr>
@@ -275,32 +294,112 @@ export function SchoolsPage() {
                 data.map((s) => (
                   <tr
                     key={s.id}
-                    className="border-b border-line/40 transition hover:bg-white/35"
+                    className="border-b border-line/50 transition hover:bg-accent/25"
                   >
-                    <td className="px-4 py-3 font-medium text-ink">{s.name}</td>
-                    <td className="px-4 py-3 text-ink/70">{s.code}</td>
-                    <td className="px-4 py-3 text-ink/70">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {s.logoUrl ? (
+                          <img
+                            src={resolveAssetUrl(s.logoUrl)}
+                            alt=""
+                            className="h-10 w-10 shrink-0 rounded-lg border border-line object-cover bg-white"
+                          />
+                        ) : (
+                          <span
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-accent/50 text-primary"
+                            aria-hidden
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="h-5 w-5"
+                            >
+                              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                            </svg>
+                          </span>
+                        )}
+                        <span className="font-semibold text-ink">{s.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-ink/90">{s.code}</td>
+                    <td className="px-4 py-3 font-medium text-ink/90">
                       {s.type.replaceAll('_', ' ')}
                     </td>
-                    <td className="px-4 py-3 text-ink/70">
+                    <td className="px-4 py-3 font-medium text-ink/90">
+                      {s.contactNumber || '—'}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-ink/90">
+                      {s.email || '—'}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-ink/90">
                       {[s.city, s.district, s.state].filter(Boolean).join(', ') ||
                         '—'}
                     </td>
+                    <td className="px-4 py-3 font-medium text-ink/90">
+                      {s.pincode || '—'}
+                    </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                      <span
+                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
+                          s.isActive
+                            ? 'bg-secondary/10 text-secondary'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {s.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
                         <Button
                           variant="ghost"
-                          className="!px-3 !py-1.5"
+                          className="!h-9 !w-9 !px-0 !py-0"
+                          title="Edit"
+                          aria-label="Edit school"
                           onClick={() => void openEdit(s.id)}
                         >
-                          Edit
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden
+                          >
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
                         </Button>
                         <Button
                           variant="danger"
-                          className="!px-3 !py-1.5"
-                          onClick={() => void deactivate(s.id)}
+                          className="!h-9 !w-9 !px-0 !py-0"
+                          title="Deactivate"
+                          aria-label="Deactivate school"
+                          onClick={() => setDeactivateTarget(s)}
                         >
-                          Deactivate
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="m4.9 4.9 14.2 14.2" />
+                          </svg>
                         </Button>
                       </div>
                     </td>
@@ -337,6 +436,49 @@ export function SchoolsPage() {
           onSubmit={onSave}
           onCancel={persistDraftAndClose}
         />
+      </Modal>
+
+      <Modal
+        open={Boolean(deactivateTarget)}
+        title="Deactivate school"
+        onClose={() => {
+          if (!deactivating) setDeactivateTarget(null)
+        }}
+        className="max-w-md"
+      >
+        <p className="text-sm leading-relaxed text-ink/80">
+          Are you sure you want to deactivate{' '}
+          <span className="font-semibold text-ink">
+            {deactivateTarget?.name}
+          </span>
+          {deactivateTarget?.code ? (
+            <>
+              {' '}
+              (
+              <span className="font-medium text-ink/90">
+                {deactivateTarget.code}
+              </span>
+              )
+            </>
+          ) : null}
+          ? This school will no longer appear in active listings.
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            disabled={deactivating}
+            onClick={() => setDeactivateTarget(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={deactivating}
+            onClick={() => void confirmDeactivate()}
+          >
+            {deactivating ? 'Deactivating…' : 'Deactivate'}
+          </Button>
+        </div>
       </Modal>
 
       <DraftToast

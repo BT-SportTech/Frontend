@@ -60,9 +60,9 @@ export function UsersPage() {
       ) : null}
 
       <GlassPanel strong className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-sm">
-            <thead className="border-b border-line/70 bg-white/30 text-ink/60">
+        <div className="min-h-[28rem] overflow-x-auto">
+          <table className="w-full min-w-[800px] text-left text-sm text-ink">
+            <thead className="border-b border-line bg-accent/40 text-ink/80">
               <tr>
                 <th className="px-4 py-3 font-semibold">Name</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
@@ -74,13 +74,19 @@ export function UsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-ink/45">
+                  <td
+                    colSpan={5}
+                    className="h-[24rem] px-4 text-center align-middle text-ink/60"
+                  >
                     Loading…
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-ink/45">
+                  <td
+                    colSpan={5}
+                    className="h-[24rem] px-4 text-center align-middle text-ink/60"
+                  >
                     No users found
                   </td>
                 </tr>
@@ -88,19 +94,19 @@ export function UsersPage() {
                 data.map((u) => (
                   <tr
                     key={u.id}
-                    className="border-b border-line/40 transition hover:bg-white/35"
+                    className="border-b border-line/50 transition hover:bg-accent/25"
                   >
-                    <td className="px-4 py-3 font-medium text-ink">
+                    <td className="px-4 py-3 font-semibold text-ink">
                       {u.firstName} {u.lastName}
                     </td>
-                    <td className="px-4 py-3 text-ink/70">{u.email}</td>
-                    <td className="px-4 py-3 text-ink/70">{u.role}</td>
-                    <td className="px-4 py-3 text-ink/70">
+                    <td className="px-4 py-3 font-medium text-ink/90">{u.email}</td>
+                    <td className="px-4 py-3 font-medium text-ink/90">{u.role}</td>
+                    <td className="px-4 py-3 font-medium text-ink/90">
                       {u.school?.name ||
                         u.company ||
                         (u.presentClass ? `Class ${u.presentClass}` : '—')}
                     </td>
-                    <td className="px-4 py-3 text-ink/70">
+                    <td className="px-4 py-3 font-medium text-ink/90">
                       {[u.city, u.state].filter(Boolean).join(', ') || '—'}
                     </td>
                   </tr>
