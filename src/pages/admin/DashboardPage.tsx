@@ -132,7 +132,7 @@ export function DashboardPage() {
           </div>
           <Link
             to="/admin/schools"
-            className="mt-4 text-sm font-semibold text-primary transition hover:text-[#1a43be]"
+            className="mt-4 text-sm font-semibold text-primary transition hover:text-primary-hover"
           >
             Manage schools →
           </Link>

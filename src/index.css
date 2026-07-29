@@ -2,6 +2,7 @@
 
 @theme {
   --color-primary: #1d4ed8;
+  --color-primary-hover: #1a43be;
   --color-secondary: #0f766e;
   --color-highlight: #c2410c;
   --color-bg: #f5f8fc;
@@ -9,6 +10,13 @@
   --color-accent: #dbeafe;
   --color-line: #d8e0ea;
   --color-surface: #ffffff;
+  --color-primary-rgb: 29 78 216;
+  --color-secondary-rgb: 15 118 110;
+  --theme-wash-a: #bfd4ff;
+  --theme-wash-b: #b7ebe3;
+  --theme-wash-base: #f5f8fc;
+  --theme-glass-tint: rgb(29 78 216 / 0);
+  --theme-wash-opacity: 0;
 
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
@@ -33,7 +41,9 @@
 
 @layer utilities {
   .glass {
-    background: rgb(255 255 255 / 0.62);
+    background:
+      linear-gradient(var(--theme-glass-tint), var(--theme-glass-tint)),
+      rgb(255 255 255 / 0.62);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgb(255 255 255 / 0.75);
@@ -43,7 +53,9 @@
   }
 
   .glass-strong {
-    background: rgb(255 255 255 / 0.96);
+    background:
+      linear-gradient(var(--theme-glass-tint), var(--theme-glass-tint)),
+      rgb(255 255 255 / 0.96);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
     border: 1px solid rgb(216 224 234 / 0.95);
@@ -53,18 +65,53 @@
   }
 
   .glass-dark {
-    background: rgb(29 78 216 / 0.35);
+    background: rgb(var(--color-primary-rgb) / 0.35);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgb(255 255 255 / 0.2);
     box-shadow: 0 8px 32px rgb(0 0 0 / 0.12);
   }
 
+  .theme-morphism-wash {
+    opacity: var(--theme-wash-opacity);
+    background:
+      radial-gradient(
+        ellipse 65% 50% at 8% 0%,
+        var(--theme-wash-a) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 50% 40% at 100% 15%,
+        var(--theme-wash-b) 0%,
+        transparent 50%
+      ),
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--theme-wash-base) 55%, transparent) 0%,
+        color-mix(in srgb, var(--theme-wash-a) 42%, transparent) 45%,
+        color-mix(in srgb, var(--theme-wash-b) 35%, transparent) 100%
+      );
+    mix-blend-mode: color;
+  }
+
   .app-backdrop {
     background:
-      radial-gradient(ellipse 65% 50% at 8% 0%, #bfd4ff 0%, transparent 55%),
-      radial-gradient(ellipse 50% 40% at 100% 15%, #b7ebe3 0%, transparent 50%),
-      linear-gradient(160deg, #f5f8fc 0%, #eef4fb 50%, #f3faf8 100%);
+      radial-gradient(
+        ellipse 65% 50% at 8% 0%,
+        var(--theme-wash-a) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 50% 40% at 100% 15%,
+        var(--theme-wash-b) 0%,
+        transparent 50%
+      ),
+      linear-gradient(
+        160deg,
+        var(--theme-wash-base) 0%,
+        color-mix(in srgb, var(--theme-wash-a) 35%, #eef4fb) 50%,
+        color-mix(in srgb, var(--theme-wash-b) 30%, #f3faf8) 100%
+      );
   }
 
   .animate-fade-in {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { AdminHeaderSearch } from '../components/admin/AdminHeaderSearch'
+import { ThemeColorPicker } from '../components/admin/ThemeColorPicker'
 import { Button } from '../components/ui'
 import { selectUser, useAuthStore } from '../stores/useAuthStore'
 import adminBackground from '../assets/background.png'
@@ -101,7 +102,8 @@ export function AdminLayout() {
         alt=""
         className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
       />
-      <div className="pointer-events-none absolute inset-0 bg-white/25" />
+      <div className="theme-morphism-wash pointer-events-none absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 bg-white/20" />
 
       <aside
         className={`glass sticky top-0 z-10 flex h-screen shrink-0 flex-col border-r border-white/60 py-6 transition-[width] duration-300 ease-out ${
@@ -215,14 +217,15 @@ export function AdminLayout() {
       </aside>
 
       <main className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-10 border-b border-white/60 px-6 py-3.5 backdrop-blur-xl">
-          <div className="flex items-center gap-6">
-            <p className="shrink-0 text-sm font-medium text-ink/55">
+        <header className="glass sticky top-0 z-10 border-b border-white/60 px-6 py-5 backdrop-blur-xl lg:px-8">
+          <div className="flex min-h-12 items-center gap-4 lg:gap-6">
+            <p className="shrink-0 text-base font-semibold text-ink/60">
               SportTech Admin Console
             </p>
             <div className="ml-auto w-1/2 min-w-0">
               <AdminHeaderSearch />
             </div>
+            <ThemeColorPicker />
           </div>
         </header>
         <div className="animate-fade-in flex-1 p-6 lg:p-8">

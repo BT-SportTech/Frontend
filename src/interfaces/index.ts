@@ -14,3 +14,9 @@ export type {
 } from './admin-search.interface'
 
 export type { SchoolFormState } from './school.interface'
+
+export type {
+  ThemeStore,
+  ThemeStoreActions,
+  ThemeStoreState,
+} from './theme.interface'
