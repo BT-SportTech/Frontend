@@ -1,10 +1,11 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AdminLayout } from './layouts/AdminLayout'
-import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/admin/DashboardPage'
+import { EventsPage } from './pages/admin/EventsPage'
 import { SchoolsPage } from './pages/admin/SchoolsPage'
 import { UsersPage } from './pages/admin/UsersPage'
+import { LoginPage } from './pages/LoginPage'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="schools" element={<SchoolsPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="events" element={<EventsPage />} />
           </Route>
         </Route>
         <Route path="/" element={<Navigate to="/admin" replace />} />

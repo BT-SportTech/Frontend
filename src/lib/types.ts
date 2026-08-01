@@ -109,3 +109,65 @@ export interface UserListItem {
   createdAt: string
   school?: { id: string; name: string } | null
 }
+
+export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED'
+
+export type AgeCategory = 'U12' | 'U14' | 'U16' | 'U18' | 'OPEN'
+
+export interface EventSchoolRef {
+  id: string
+  name: string
+  code: string
+}
+
+export interface SportEvent {
+  id: string
+  createdAt: string
+  updatedAt: string
+  name: string
+  sport: string
+  description?: string | null
+  venue: string
+  startsAt: string
+  endsAt?: string | null
+  registrationOpensAt: string
+  registrationClosesAt: string
+  maxParticipants: number
+  registeredCount: number
+  seatsLeft: number
+  status: EventStatus
+  state: string
+  district: string
+  ageCategory: AgeCategory
+  genders: Gender[]
+  fee: number
+  pointsReward: number
+  schoolIds: string[]
+  schools: EventSchoolRef[]
+  createdBy?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  isRegistered?: boolean
+}
+
+export interface EventPayload {
+  name: string
+  sport: string
+  description?: string
+  venue: string
+  startsAt: string
+  endsAt?: string
+  registrationOpensAt: string
+  registrationClosesAt: string
+  maxParticipants: number
+  state: string
+  district: string
+  ageCategory: AgeCategory
+  genders: Gender[]
+  schoolIds: string[]
+  fee: number
+  pointsReward: number
+}

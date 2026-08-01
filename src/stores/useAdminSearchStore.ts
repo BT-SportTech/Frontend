@@ -4,6 +4,7 @@ import type { AdminSearchStore, AdminSearchTab } from '../interfaces'
 export const useAdminSearchStore = create<AdminSearchStore>((set) => ({
   schools: '',
   users: '',
+  events: '',
 
   setSearch: (tab, value) => set({ [tab]: value }),
 
