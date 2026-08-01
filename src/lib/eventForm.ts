@@ -41,6 +41,8 @@ export type EventFormState = {
   schoolIds: string[]
   fee: string
   pointsReward: string
+  imageUrl: string
+  imageFile: File | null
 }
 
 function toLocalInputValue(iso: string | Date): string {
@@ -87,6 +89,8 @@ export function emptyEventForm(): EventFormState {
     schoolIds: [],
     fee: '0',
     pointsReward: '50',
+    imageUrl: '',
+    imageFile: null,
   }
 }
 
@@ -108,6 +112,8 @@ export function eventToForm(event: SportEvent): EventFormState {
     schoolIds: [...event.schoolIds],
     fee: String(event.fee),
     pointsReward: String(event.pointsReward),
+    imageUrl: event.imageUrl ?? '',
+    imageFile: null,
   }
 }
 
@@ -131,5 +137,6 @@ export function formToEventPayload(form: EventFormState): EventPayload {
     schoolIds: form.schoolIds,
     fee: Math.max(0, parseFloat(form.fee) || 0),
     pointsReward: Math.max(0, parseInt(form.pointsReward, 10) || 0),
+    imageUrl: form.imageUrl.trim() || null,
   }
 }

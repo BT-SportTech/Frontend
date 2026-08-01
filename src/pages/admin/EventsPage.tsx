@@ -17,18 +17,18 @@ import {
   EVENT_GENDERS,
   EVENT_SPORTS,
   eventToForm,
-  formToEventPayload,
   type EventFormState,
 } from '../../lib/eventForm'
 import { getDistricts, getStates, withCurrentOption } from '../../lib/locations'
+import { EventImageUploadField } from '../../components/events/EventImageUploadField'
+import { resolveAssetUrl } from '../../lib/api'
 import {
   cancelEvent,
   completeEvent,
-  createEvent,
   eventsKeys,
   fetchEvents,
   publishEvent,
-  updateEvent,
+  saveEvent,
 } from '../../lib/queries/events'
 import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
 import type { EventStatus, Gender, SportEvent } from '../../lib/types'
@@ -114,11 +114,7 @@ export function EventsPage() {
   }, [queryClient])
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = formToEventPayload(form)
-      if (editingId) return updateEvent(editingId, payload)
-      return createEvent(payload)
-    },
+    mutationFn: async () => saveEvent({ editingId, form }),
     onSuccess: async () => {
       setModalOpen(false)
       setActionError('')
@@ -285,8 +281,23 @@ export function EventsPage() {
                     className="border-b border-line/50 transition hover:bg-accent/25"
                   >
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-ink">{event.name}</p>
-                      <p className="text-xs text-ink/50">{event.venue}</p>
+                      <div className="flex items-center gap-3">
+                        {event.imageUrl ? (
+                          <img
+                            src={resolveAssetUrl(event.imageUrl)}
+                            alt=""
+                            className="h-10 w-14 shrink-0 rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-accent/50 text-[10px] text-ink/40">
+                            No img
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-semibold text-ink">{event.name}</p>
+                          <p className="text-xs text-ink/50">{event.venue}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 font-medium text-ink/90">
                       {event.sport}
@@ -419,6 +430,26 @@ export function EventsPage() {
                 required
                 value={form.name}
                 onChange={(e) => patchForm('name', e.target.value)}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <EventImageUploadField
+                imageUrl={form.imageUrl}
+                imageFile={form.imageFile}
+                onSelect={(file) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    imageFile: file,
+                    imageUrl: prev.imageUrl,
+                  }))
+                }
+                onClear={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    imageFile: null,
+                    imageUrl: '',
+                  }))
+                }
               />
             </div>
             <div>

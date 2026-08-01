@@ -1,4 +1,5 @@
-import { api } from '../api'
+import { api, uploadEventImage } from '../api'
+import { formToEventPayload, type EventFormState } from '../eventForm'
 import type { EventPayload, Paginated, SportEvent } from '../types'
 
 export type EventsListParams = {
@@ -31,6 +32,30 @@ export async function fetchEvents(
 
 export async function fetchEvent(id: string): Promise<SportEvent> {
   return api<SportEvent>(`/events/${id}`)
+}
+
+export type SaveEventInput = {
+  editingId: string | null
+  form: EventFormState
+}
+
+export async function saveEvent({
+  editingId,
+  form,
+}: SaveEventInput): Promise<SportEvent> {
+  let imageUrl = form.imageUrl.trim()
+  if (form.imageFile) {
+    const uploaded = await uploadEventImage(form.imageFile)
+    imageUrl = uploaded.url
+  }
+
+  const payload: EventPayload = {
+    ...formToEventPayload(form),
+    imageUrl: imageUrl || null,
+  }
+
+  if (editingId) return updateEvent(editingId, payload)
+  return createEvent(payload)
 }
 
 export async function createEvent(payload: EventPayload): Promise<SportEvent> {

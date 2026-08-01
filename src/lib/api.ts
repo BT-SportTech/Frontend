@@ -154,3 +154,41 @@ export async function uploadSchoolLogo(
 
   return (await res.json()) as { url: string }
 }
+
+export async function uploadEventImage(
+  file: File,
+): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const token = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const res = await fetch(`${API_BASE}/events/upload-image`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+
+  if (res.status === 401) {
+    const ok = await tryRefresh()
+    if (ok) return uploadEventImage(file)
+    clearTokens()
+    throw new Error('Session expired. Please sign in again.')
+  }
+
+  if (!res.ok) {
+    let message = `Upload failed (${res.status})`
+    try {
+      const err = (await res.json()) as { message?: string | string[] }
+      if (Array.isArray(err.message)) message = err.message.join(', ')
+      else if (err.message) message = err.message
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message)
+  }
+
+  return (await res.json()) as { url: string }
+}

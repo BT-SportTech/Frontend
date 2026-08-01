@@ -142,6 +142,7 @@ export interface SportEvent {
   genders: Gender[]
   fee: number
   pointsReward: number
+  imageUrl?: string | null
   schoolIds: string[]
   schools: EventSchoolRef[]
   createdBy?: {
@@ -170,4 +171,5 @@ export interface EventPayload {
   schoolIds: string[]
   fee: number
   pointsReward: number
+  imageUrl?: string | null
 }
