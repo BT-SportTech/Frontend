@@ -15,7 +15,6 @@ import {
   AGE_CATEGORIES,
   emptyEventForm,
   EVENT_GENDERS,
-  EVENT_SPORTS,
   eventToForm,
   type EventFormState,
 } from '../../lib/eventForm'
@@ -30,6 +29,7 @@ import {
   publishEvent,
   saveEvent,
 } from '../../lib/queries/events'
+import { fetchGames, gamesKeys } from '../../lib/queries/games'
 import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
 import type { EventStatus, Gender, SportEvent } from '../../lib/types'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
@@ -98,10 +98,17 @@ export function EventsPage() {
     queryFn: () => fetchSchools({ page: 1, limit: 100 }),
   })
 
+  const { data: gamesData } = useQuery({
+    queryKey: gamesKeys.list({ page: 1, limit: 100, isActive: true }),
+    queryFn: () => fetchGames({ page: 1, limit: 100, isActive: true }),
+  })
+
   const events = data?.data ?? []
   const total = data?.meta.total ?? 0
   const totalPages = data?.meta.totalPages ?? 0
   const schools = schoolsData?.data ?? []
+  const games = gamesData?.data ?? []
+  const selectedGame = games.find((g) => g.id === form.gameId) ?? null
 
   const states = useMemo(() => getStates(), [])
   const districts = useMemo(
@@ -193,8 +200,16 @@ export function EventsPage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!form.state || !form.district) {
-      setActionError('Select state and district for the event zone.')
+    if (!form.gameId) {
+      setActionError('Select a game from the catalog.')
+      return
+    }
+    const hasState = Boolean(form.state.trim())
+    const hasDistrict = Boolean(form.district.trim())
+    if (hasState !== hasDistrict) {
+      setActionError(
+        'Set both state and district for a zone, or leave both empty for nationwide.',
+      )
       return
     }
     saveMutation.mutate()
@@ -309,7 +324,9 @@ export function EventsPage() {
                       {formatWhen(event.startsAt)}
                     </td>
                     <td className="px-4 py-3 font-medium text-ink/90">
-                      {event.district}, {event.state}
+                      {event.state?.trim() && event.district?.trim()
+                        ? `${event.district}, ${event.state}`
+                        : '—'}
                     </td>
                     <td className="px-4 py-3 font-medium text-ink/90">
                       {event.registeredCount}/{event.maxParticipants}
@@ -452,18 +469,52 @@ export function EventsPage() {
                 }
               />
             </div>
-            <div>
-              <FieldLabel>Sport</FieldLabel>
+            <div className="sm:col-span-2">
+              <FieldLabel>Game</FieldLabel>
               <SelectInput
-                value={form.sport}
-                onChange={(e) => patchForm('sport', e.target.value)}
+                required
+                value={form.gameId}
+                onChange={(e) => {
+                  const gameId = e.target.value
+                  const game = games.find((g) => g.id === gameId)
+                  setForm((prev) => ({
+                    ...prev,
+                    gameId,
+                    pointsReward: game
+                      ? String(game.winPoints)
+                      : prev.pointsReward,
+                  }))
+                }}
               >
-                {EVENT_SPORTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                <option value="">Select game</option>
+                {games.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
                   </option>
                 ))}
               </SelectInput>
+              {selectedGame ? (
+                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white/80 px-3 py-2.5">
+                  {selectedGame.imageUrl ? (
+                    <img
+                      src={resolveAssetUrl(selectedGame.imageUrl)}
+                      alt=""
+                      className="h-8 w-12 shrink-0 rounded object-cover"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">{selectedGame.name}</p>
+                    <p className="mt-0.5 text-sm text-ink/55">
+                      Players per match{' '}
+                      <span className="font-mono font-semibold tabular-nums text-ink">
+                        {selectedGame.sidesPerMatch} &times;{' '}
+                        {selectedGame.playersPerSide} ={' '}
+                        {selectedGame.playersPerMatch}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div>
               <FieldLabel>Age category</FieldLabel>
@@ -556,13 +607,12 @@ export function EventsPage() {
               />
             </div>
             <div>
-              <FieldLabel>State (zone)</FieldLabel>
+              <FieldLabel>State (optional zone)</FieldLabel>
               <SelectInput
-                required
                 value={form.state}
                 onChange={(e) => patchForm('state', e.target.value)}
               >
-                <option value="">Select state</option>
+                <option value="">Nationwide</option>
                 {states.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -571,14 +621,15 @@ export function EventsPage() {
               </SelectInput>
             </div>
             <div>
-              <FieldLabel>District (zone)</FieldLabel>
+              <FieldLabel>District (optional zone)</FieldLabel>
               <SelectInput
-                required
                 value={form.district}
                 disabled={!form.state}
                 onChange={(e) => patchForm('district', e.target.value)}
               >
-                <option value="">Select district</option>
+                <option value="">
+                  {form.state ? 'Select district' : 'Nationwide'}
+                </option>
                 {districts.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -613,7 +664,7 @@ export function EventsPage() {
 
           <div>
             <FieldLabel>
-              Target schools (optional — empty = all schools in zone)
+              Target schools (optional — empty = all eligible schools)
             </FieldLabel>
             <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
               {schools.length === 0 ? (

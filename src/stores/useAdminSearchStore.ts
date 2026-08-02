@@ -5,6 +5,7 @@ export const useAdminSearchStore = create<AdminSearchStore>((set) => ({
   schools: '',
   users: '',
   events: '',
+  games: '',
 
   setSearch: (tab, value) => set({ [tab]: value }),
 

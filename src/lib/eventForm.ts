@@ -1,14 +1,5 @@
 import type { AgeCategory, EventPayload, Gender, SportEvent } from '../lib/types'
 
-export const EVENT_SPORTS = [
-  'Football',
-  'Badminton',
-  'Cricket',
-  'Athletics',
-  'Basketball',
-  'Tennis',
-] as const
-
 export const AGE_CATEGORIES: AgeCategory[] = [
   'U12',
   'U14',
@@ -26,7 +17,7 @@ export const EVENT_GENDERS: Gender[] = [
 
 export type EventFormState = {
   name: string
-  sport: string
+  gameId: string
   description: string
   venue: string
   startsAt: string
@@ -74,7 +65,7 @@ export function emptyEventForm(): EventFormState {
 
   return {
     name: '',
-    sport: 'Football',
+    gameId: '',
     description: '',
     venue: '',
     startsAt: toLocalInputValue(starts),
@@ -97,7 +88,7 @@ export function emptyEventForm(): EventFormState {
 export function eventToForm(event: SportEvent): EventFormState {
   return {
     name: event.name,
-    sport: event.sport,
+    gameId: event.gameId ?? event.game?.id ?? '',
     description: event.description ?? '',
     venue: event.venue,
     startsAt: toLocalInputValue(event.startsAt),
@@ -105,8 +96,8 @@ export function eventToForm(event: SportEvent): EventFormState {
     registrationOpensAt: toLocalInputValue(event.registrationOpensAt),
     registrationClosesAt: toLocalInputValue(event.registrationClosesAt),
     maxParticipants: String(event.maxParticipants),
-    state: event.state,
-    district: event.district,
+    state: event.state ?? '',
+    district: event.district ?? '',
     ageCategory: event.ageCategory,
     genders: [...event.genders],
     schoolIds: [...event.schoolIds],
@@ -120,7 +111,7 @@ export function eventToForm(event: SportEvent): EventFormState {
 export function formToEventPayload(form: EventFormState): EventPayload {
   return {
     name: form.name.trim(),
-    sport: form.sport.trim(),
+    gameId: form.gameId,
     description: form.description.trim() || undefined,
     venue: form.venue.trim(),
     startsAt: fromLocalInputValue(form.startsAt),
@@ -130,8 +121,8 @@ export function formToEventPayload(form: EventFormState): EventPayload {
     registrationOpensAt: fromLocalInputValue(form.registrationOpensAt),
     registrationClosesAt: fromLocalInputValue(form.registrationClosesAt),
     maxParticipants: Math.max(1, parseInt(form.maxParticipants, 10) || 1),
-    state: form.state,
-    district: form.district,
+    state: form.state.trim() || undefined,
+    district: form.district.trim() || undefined,
     ageCategory: form.ageCategory,
     genders: form.genders,
     schoolIds: form.schoolIds,

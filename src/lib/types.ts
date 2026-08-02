@@ -120,12 +120,40 @@ export interface EventSchoolRef {
   code: string
 }
 
+export interface GameRef {
+  id: string
+  name: string
+  imageUrl?: string | null
+  sidesPerMatch: number
+  playersPerSide: number
+  playersPerMatch: number
+  winPoints: number
+  lossPoints: number
+}
+
+export interface Game extends GameRef {
+  createdAt: string
+  updatedAt: string
+  isActive: boolean
+}
+
+export interface GamePayload {
+  name: string
+  sidesPerMatch: number
+  playersPerSide: number
+  winPoints: number
+  lossPoints: number
+  imageUrl?: string | null
+}
+
 export interface SportEvent {
   id: string
   createdAt: string
   updatedAt: string
   name: string
   sport: string
+  gameId?: string | null
+  game?: GameRef | null
   description?: string | null
   venue: string
   startsAt: string
@@ -136,8 +164,8 @@ export interface SportEvent {
   registeredCount: number
   seatsLeft: number
   status: EventStatus
-  state: string
-  district: string
+  state?: string | null
+  district?: string | null
   ageCategory: AgeCategory
   genders: Gender[]
   fee: number
@@ -156,7 +184,7 @@ export interface SportEvent {
 
 export interface EventPayload {
   name: string
-  sport: string
+  gameId: string
   description?: string
   venue: string
   startsAt: string
@@ -164,8 +192,8 @@ export interface EventPayload {
   registrationOpensAt: string
   registrationClosesAt: string
   maxParticipants: number
-  state: string
-  district: string
+  state?: string
+  district?: string
   ageCategory: AgeCategory
   genders: Gender[]
   schoolIds: string[]

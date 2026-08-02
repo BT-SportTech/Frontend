@@ -20,12 +20,17 @@ const TAB_CONFIG: Record<
     match: (path) => path.startsWith('/admin/events'),
     placeholder: 'Search name, sport, venue…',
   },
+  games: {
+    match: (path) => path.startsWith('/admin/games'),
+    placeholder: 'Search games…',
+  },
 }
 
 function resolveTab(pathname: string): AdminSearchTab | null {
   if (TAB_CONFIG.schools.match(pathname)) return 'schools'
   if (TAB_CONFIG.users.match(pathname)) return 'users'
   if (TAB_CONFIG.events.match(pathname)) return 'events'
+  if (TAB_CONFIG.games.match(pathname)) return 'games'
   return null
 }
 
