@@ -25,9 +25,13 @@ import {
   cancelEvent,
   completeEvent,
   eventsKeys,
+  fetchEventRegistrations,
   fetchEvents,
   publishEvent,
   saveEvent,
+  submitEventResults,
+  type EventRegistrationRow,
+  type MatchOutcome,
 } from '../../lib/queries/events'
 import { fetchGames, gamesKeys } from '../../lib/queries/games'
 import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
@@ -64,6 +68,15 @@ export function EventsPage() {
     type: 'publish' | 'complete' | 'cancel'
     name: string
   } | null>(null)
+  const [resultsEvent, setResultsEvent] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [resultsRows, setResultsRows] = useState<EventRegistrationRow[]>([])
+  const [outcomes, setOutcomes] = useState<Record<string, MatchOutcome>>({})
+  const [resultsLoading, setResultsLoading] = useState(false)
+  const [resultsError, setResultsError] = useState('')
+  const [resultsSaving, setResultsSaving] = useState(false)
 
   if (search !== prevSearch) {
     setPrevSearch(search)
@@ -373,15 +386,38 @@ export function EventsPage() {
                               type="button"
                               variant="secondary"
                               className="!px-2 !py-1 text-xs"
-                              onClick={() =>
-                                setConfirmAction({
+                              onClick={async () => {
+                                setResultsError('')
+                                setResultsEvent({
                                   id: event.id,
-                                  type: 'complete',
                                   name: event.name,
                                 })
-                              }
+                                setResultsLoading(true)
+                                try {
+                                  const res = await fetchEventRegistrations(
+                                    event.id,
+                                  )
+                                  setResultsRows(res.data)
+                                  const initial: Record<string, MatchOutcome> =
+                                    {}
+                                  for (const row of res.data) {
+                                    initial[row.userId] =
+                                      row.outcome ?? 'LOSS'
+                                  }
+                                  setOutcomes(initial)
+                                } catch (e) {
+                                  setResultsError(
+                                    e instanceof Error
+                                      ? e.message
+                                      : 'Failed to load registrations',
+                                  )
+                                  setResultsRows([])
+                                } finally {
+                                  setResultsLoading(false)
+                                }
+                              }}
                             >
-                              Complete
+                              Results
                             </Button>
                             <Button
                               type="button"
@@ -398,6 +434,44 @@ export function EventsPage() {
                               Cancel
                             </Button>
                           </>
+                        )}
+                        {event.status === 'COMPLETED' && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="!px-2 !py-1 text-xs"
+                            onClick={async () => {
+                              setResultsError('')
+                              setResultsEvent({
+                                id: event.id,
+                                name: event.name,
+                              })
+                              setResultsLoading(true)
+                              try {
+                                const res = await fetchEventRegistrations(
+                                  event.id,
+                                )
+                                setResultsRows(res.data)
+                                const initial: Record<string, MatchOutcome> =
+                                  {}
+                                for (const row of res.data) {
+                                  initial[row.userId] = row.outcome ?? 'LOSS'
+                                }
+                                setOutcomes(initial)
+                              } catch (e) {
+                                setResultsError(
+                                  e instanceof Error
+                                    ? e.message
+                                    : 'Failed to load registrations',
+                                )
+                                setResultsRows([])
+                              } finally {
+                                setResultsLoading(false)
+                              }
+                            }}
+                          >
+                            Results
+                          </Button>
                         )}
                         {event.status === 'DRAFT' && (
                           <Button
@@ -740,6 +814,119 @@ export function EventsPage() {
             }}
           >
             {statusMutation.isPending ? 'Working…' : 'Confirm'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!resultsEvent}
+        title={
+          resultsEvent
+            ? `Results · ${resultsEvent.name}`
+            : 'Event results'
+        }
+        onClose={() => {
+          setResultsEvent(null)
+          setResultsRows([])
+          setOutcomes({})
+          setResultsError('')
+        }}
+      >
+        <p className="mb-4 text-sm text-ink/70">
+          Set WIN / LOSS / DRAW for each player. Saving marks the event
+          completed and awards points to player profiles.
+        </p>
+        {resultsLoading ? (
+          <p className="text-sm text-ink/60">Loading registrations…</p>
+        ) : resultsRows.length === 0 ? (
+          <p className="text-sm text-ink/60">
+            No confirmed registrations for this event.
+          </p>
+        ) : (
+          <div className="max-h-80 space-y-2 overflow-y-auto">
+            {resultsRows.map((row) => {
+              const name =
+                `${row.user.firstName} ${row.user.lastName}`.trim() ||
+                row.user.username
+              return (
+                <div
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {name}
+                    </p>
+                    <p className="truncate text-xs text-ink/50">
+                      @{row.user.username}
+                    </p>
+                  </div>
+                  <SelectInput
+                    className="!w-28 !py-1.5 text-sm"
+                    value={outcomes[row.userId] ?? 'LOSS'}
+                    onChange={(e) =>
+                      setOutcomes((prev) => ({
+                        ...prev,
+                        [row.userId]: e.target.value as MatchOutcome,
+                      }))
+                    }
+                  >
+                    <option value="WIN">Win</option>
+                    <option value="LOSS">Loss</option>
+                    <option value="DRAW">Draw</option>
+                  </SelectInput>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {resultsError ? (
+          <p className="mt-3 text-sm text-red-600">{resultsError}</p>
+        ) : null}
+        <div className="mt-5 flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setResultsEvent(null)
+              setResultsRows([])
+              setOutcomes({})
+              setResultsError('')
+            }}
+          >
+            Close
+          </Button>
+          <Button
+            type="button"
+            disabled={
+              resultsSaving || resultsLoading || resultsRows.length === 0
+            }
+            onClick={async () => {
+              if (!resultsEvent) return
+              setResultsSaving(true)
+              setResultsError('')
+              try {
+                await submitEventResults(
+                  resultsEvent.id,
+                  resultsRows.map((row) => ({
+                    userId: row.userId,
+                    outcome: outcomes[row.userId] ?? 'LOSS',
+                  })),
+                )
+                await invalidate()
+                setResultsEvent(null)
+                setResultsRows([])
+                setOutcomes({})
+              } catch (e) {
+                setResultsError(
+                  e instanceof Error ? e.message : 'Failed to save results',
+                )
+              } finally {
+                setResultsSaving(false)
+              }
+            }}
+          >
+            {resultsSaving ? 'Saving…' : 'Save results & complete'}
           </Button>
         </div>
       </Modal>

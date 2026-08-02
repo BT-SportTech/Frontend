@@ -80,3 +80,38 @@ export async function completeEvent(id: string): Promise<SportEvent> {
 export async function cancelEvent(id: string): Promise<SportEvent> {
   return api<SportEvent>(`/events/${id}/cancel`, { method: 'POST' })
 }
+
+export type MatchOutcome = 'WIN' | 'LOSS' | 'DRAW'
+
+export type EventRegistrationRow = {
+  id: string
+  userId: string
+  status: string
+  outcome: MatchOutcome | null
+  pointsEarned: number
+  registeredAt: string
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    username: string
+    email: string | null
+  }
+}
+
+export async function fetchEventRegistrations(eventId: string): Promise<{
+  eventId: string
+  data: EventRegistrationRow[]
+}> {
+  return api(`/events/${eventId}/registrations`)
+}
+
+export async function submitEventResults(
+  eventId: string,
+  results: { userId: string; outcome: MatchOutcome }[],
+): Promise<{ eventId: string; data: EventRegistrationRow[] }> {
+  return api(`/events/${eventId}/results`, {
+    method: 'POST',
+    body: { results },
+  })
+}
