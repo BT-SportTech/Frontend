@@ -788,7 +788,7 @@ export function EventsPage() {
       >
         <p className="text-sm text-ink/70">
           {confirmAction?.type === 'publish'
-            ? `Publish “${confirmAction.name}”? It will appear in the mobile app for eligible students.`
+            ? `Publish “${confirmAction.name}”? It will appear in the mobile app for eligible players.`
             : confirmAction?.type === 'complete'
               ? `Mark “${confirmAction?.name}” as completed?`
               : `Cancel “${confirmAction?.name}”? Students will no longer see it as available.`}
