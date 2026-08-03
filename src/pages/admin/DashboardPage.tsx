@@ -49,21 +49,18 @@ export function DashboardPage() {
           value={stats?.usersTotal}
           loading={loading}
           accent="secondary"
-          to="/admin/users"
         />
         <StatCard
           label="Players"
           value={stats?.players}
           loading={loading}
           accent="primary"
-          to="/admin/users"
         />
         <StatCard
           label="Professionals"
           value={stats?.professionals}
           loading={loading}
           accent="secondary"
-          to="/admin/users"
         />
       </div>
 
@@ -226,30 +223,40 @@ function StatCard({
   value?: number
   loading: boolean
   accent: 'primary' | 'secondary'
-  to: string
+  to?: string
 }) {
   const labelClass =
     accent === 'primary' ? 'text-primary' : 'text-secondary'
   const barClass = accent === 'primary' ? 'bg-primary' : 'bg-secondary'
 
-  return (
-    <Link to={to} className="group block">
-      <GlassPanel
-        strong
-        className="relative overflow-hidden p-5 transition group-hover:-translate-y-0.5"
+  const panel = (
+    <GlassPanel
+      strong
+      className={`relative overflow-hidden p-5 ${
+        to ? 'transition group-hover:-translate-y-0.5' : ''
+      }`}
+    >
+      <div className={`absolute inset-y-0 left-0 w-1 ${barClass}`} />
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${labelClass}`}
       >
-        <div className={`absolute inset-y-0 left-0 w-1 ${barClass}`} />
-        <p
-          className={`text-xs font-semibold uppercase tracking-wide ${labelClass}`}
-        >
-          {label}
-        </p>
-        <p className="mt-2 font-sans text-3xl font-bold tabular-nums text-ink">
-          {loading ? '—' : (value ?? 0).toLocaleString()}
-        </p>
-      </GlassPanel>
-    </Link>
+        {label}
+      </p>
+      <p className="mt-2 font-sans text-3xl font-bold tabular-nums text-ink">
+        {loading ? '—' : (value ?? 0).toLocaleString()}
+      </p>
+    </GlassPanel>
   )
+
+  if (to) {
+    return (
+      <Link to={to} className="group block">
+        {panel}
+      </Link>
+    )
+  }
+
+  return panel
 }
 
 function SchoolGlyph() {

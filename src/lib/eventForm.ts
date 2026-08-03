@@ -1,4 +1,4 @@
-import type { AgeCategory, EventPayload, Gender, SportEvent } from '../lib/types'
+import type { AgeCategory, EventPayload, Gender } from '../lib/types'
 
 export const AGE_CATEGORIES: AgeCategory[] = [
   'U12',
@@ -7,6 +7,16 @@ export const AGE_CATEGORIES: AgeCategory[] = [
   'U18',
   'OPEN',
 ]
+
+/** Fixed catalog shown in the admin event create dropdown. */
+export const ADMIN_EVENT_GAMES = [
+  'Chess',
+  'Table Tennis',
+  'Tennis',
+  'Badminton',
+  'Football',
+] as const
+
 
 export const EVENT_GENDERS: Gender[] = [
   'MALE',
@@ -81,29 +91,6 @@ export function emptyEventForm(): EventFormState {
     fee: '0',
     pointsReward: '50',
     imageUrl: '',
-    imageFile: null,
-  }
-}
-
-export function eventToForm(event: SportEvent): EventFormState {
-  return {
-    name: event.name,
-    gameId: event.gameId ?? event.game?.id ?? '',
-    description: event.description ?? '',
-    venue: event.venue,
-    startsAt: toLocalInputValue(event.startsAt),
-    endsAt: event.endsAt ? toLocalInputValue(event.endsAt) : '',
-    registrationOpensAt: toLocalInputValue(event.registrationOpensAt),
-    registrationClosesAt: toLocalInputValue(event.registrationClosesAt),
-    maxParticipants: String(event.maxParticipants),
-    state: event.state ?? '',
-    district: event.district ?? '',
-    ageCategory: event.ageCategory,
-    genders: [...event.genders],
-    schoolIds: [...event.schoolIds],
-    fee: String(event.fee),
-    pointsReward: String(event.pointsReward),
-    imageUrl: event.imageUrl ?? '',
     imageFile: null,
   }
 }

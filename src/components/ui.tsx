@@ -87,6 +87,15 @@ export function CheckboxField({
   )
 }
 
+export function Skeleton({ className = '' }: { className?: string }) {
+  return (
+    <div
+      className={`skeleton rounded-md ${className}`}
+      aria-hidden
+    />
+  )
+}
+
 export function Button({
   variant = 'primary',
   className = '',

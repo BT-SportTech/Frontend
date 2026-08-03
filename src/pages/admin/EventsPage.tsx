@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useState, type FormEvent, type MouseEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Pagination } from '../../components/Pagination'
 import {
   Button,
@@ -12,18 +13,16 @@ import {
 } from '../../components/ui'
 import { Modal } from '../../components/ui/Modal'
 import {
+  ADMIN_EVENT_GAMES,
   AGE_CATEGORIES,
   emptyEventForm,
   EVENT_GENDERS,
-  eventToForm,
   type EventFormState,
 } from '../../lib/eventForm'
 import { getDistricts, getStates, withCurrentOption } from '../../lib/locations'
 import { EventImageUploadField } from '../../components/events/EventImageUploadField'
 import { resolveAssetUrl } from '../../lib/api'
 import {
-  cancelEvent,
-  completeEvent,
   eventsKeys,
   fetchEventRegistrations,
   fetchEvents,
@@ -45,6 +44,8 @@ const STATUS_STYLES: Record<EventStatus, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
 }
 
+const ADMIN_GAME_NAME_SET = new Set<string>(ADMIN_EVENT_GAMES)
+
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -53,6 +54,7 @@ function formatWhen(iso: string) {
 }
 
 export function EventsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const search = useAdminSearchStore((state) => state.events)
   const [page, setPage] = useState(1)
@@ -61,11 +63,9 @@ export function EventsPage() {
   const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('')
   const [actionError, setActionError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<EventFormState>(emptyEventForm())
-  const [confirmAction, setConfirmAction] = useState<{
+  const [confirmPublish, setConfirmPublish] = useState<{
     id: string
-    type: 'publish' | 'complete' | 'cancel'
     name: string
   } | null>(null)
   const [resultsEvent, setResultsEvent] = useState<{
@@ -120,7 +120,12 @@ export function EventsPage() {
   const total = data?.meta.total ?? 0
   const totalPages = data?.meta.totalPages ?? 0
   const schools = schoolsData?.data ?? []
-  const games = gamesData?.data ?? []
+  const games = useMemo(() => {
+    const active = gamesData?.data ?? []
+    return ADMIN_EVENT_GAMES.map((name) =>
+      active.find((g) => g.name === name),
+    ).filter((g): g is NonNullable<typeof g> => Boolean(g))
+  }, [gamesData?.data])
   const selectedGame = games.find((g) => g.id === form.gameId) ?? null
 
   const states = useMemo(() => getStates(), [])
@@ -134,7 +139,7 @@ export function EventsPage() {
   }, [queryClient])
 
   const saveMutation = useMutation({
-    mutationFn: async () => saveEvent({ editingId, form }),
+    mutationFn: async () => saveEvent({ editingId: null, form }),
     onSuccess: async () => {
       setModalOpen(false)
       setActionError('')
@@ -145,39 +150,21 @@ export function EventsPage() {
     },
   })
 
-  const statusMutation = useMutation({
-    mutationFn: async ({
-      id,
-      type,
-    }: {
-      id: string
-      type: 'publish' | 'complete' | 'cancel'
-    }) => {
-      if (type === 'publish') return publishEvent(id)
-      if (type === 'complete') return completeEvent(id)
-      return cancelEvent(id)
-    },
+  const publishMutation = useMutation({
+    mutationFn: async (id: string) => publishEvent(id),
     onSuccess: async () => {
-      setConfirmAction(null)
+      setConfirmPublish(null)
       setActionError('')
       await invalidate()
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Action failed')
-      setConfirmAction(null)
+      setActionError(err instanceof Error ? err.message : 'Publish failed')
+      setConfirmPublish(null)
     },
   })
 
   function openCreate() {
-    setEditingId(null)
     setForm(emptyEventForm())
-    setActionError('')
-    setModalOpen(true)
-  }
-
-  function openEdit(event: SportEvent) {
-    setEditingId(event.id)
-    setForm(eventToForm(event))
     setActionError('')
     setModalOpen(true)
   }
@@ -214,7 +201,7 @@ export function EventsPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form.gameId) {
-      setActionError('Select a game from the catalog.')
+      setActionError('Select a game.')
       return
     }
     const hasState = Boolean(form.state.trim())
@@ -226,6 +213,29 @@ export function EventsPage() {
       return
     }
     saveMutation.mutate()
+  }
+
+  async function openResults(event: SportEvent, e: MouseEvent) {
+    e.stopPropagation()
+    setResultsError('')
+    setResultsEvent({ id: event.id, name: event.name })
+    setResultsLoading(true)
+    try {
+      const res = await fetchEventRegistrations(event.id)
+      setResultsRows(res.data)
+      const initial: Record<string, MatchOutcome> = {}
+      for (const row of res.data) {
+        initial[row.userId] = row.outcome ?? 'LOSS'
+      }
+      setOutcomes(initial)
+    } catch (err) {
+      setResultsError(
+        err instanceof Error ? err.message : 'Failed to load registrations',
+      )
+      setResultsRows([])
+    } finally {
+      setResultsLoading(false)
+    }
   }
 
   return (
@@ -306,7 +316,8 @@ export function EventsPage() {
                 events.map((event) => (
                   <tr
                     key={event.id}
-                    className="border-b border-line/50 transition hover:bg-accent/25"
+                    className="cursor-pointer border-b border-line/50 transition hover:bg-accent/25"
+                    onClick={() => navigate(`/admin/events/${event.id}`)}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -351,28 +362,24 @@ export function EventsPage() {
                         {event.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap gap-2">
-                        {(event.status === 'DRAFT' ||
-                          event.status === 'PUBLISHED') && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="!px-2 !py-1 text-xs"
-                            onClick={() => openEdit(event)}
-                          >
-                            Edit
-                          </Button>
-                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="!px-2 !py-1 text-xs"
+                          onClick={() => navigate(`/admin/events/${event.id}`)}
+                        >
+                          View
+                        </Button>
                         {event.status === 'DRAFT' && (
                           <Button
                             type="button"
                             variant="secondary"
                             className="!px-2 !py-1 text-xs"
                             onClick={() =>
-                              setConfirmAction({
+                              setConfirmPublish({
                                 id: event.id,
-                                type: 'publish',
                                 name: event.name,
                               })
                             }
@@ -380,113 +387,15 @@ export function EventsPage() {
                             Publish
                           </Button>
                         )}
-                        {event.status === 'PUBLISHED' && (
-                          <>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="!px-2 !py-1 text-xs"
-                              onClick={async () => {
-                                setResultsError('')
-                                setResultsEvent({
-                                  id: event.id,
-                                  name: event.name,
-                                })
-                                setResultsLoading(true)
-                                try {
-                                  const res = await fetchEventRegistrations(
-                                    event.id,
-                                  )
-                                  setResultsRows(res.data)
-                                  const initial: Record<string, MatchOutcome> =
-                                    {}
-                                  for (const row of res.data) {
-                                    initial[row.userId] =
-                                      row.outcome ?? 'LOSS'
-                                  }
-                                  setOutcomes(initial)
-                                } catch (e) {
-                                  setResultsError(
-                                    e instanceof Error
-                                      ? e.message
-                                      : 'Failed to load registrations',
-                                  )
-                                  setResultsRows([])
-                                } finally {
-                                  setResultsLoading(false)
-                                }
-                              }}
-                            >
-                              Results
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="danger"
-                              className="!px-2 !py-1 text-xs"
-                              onClick={() =>
-                                setConfirmAction({
-                                  id: event.id,
-                                  type: 'cancel',
-                                  name: event.name,
-                                })
-                              }
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        )}
-                        {event.status === 'COMPLETED' && (
+                        {(event.status === 'PUBLISHED' ||
+                          event.status === 'COMPLETED') && (
                           <Button
                             type="button"
                             variant="secondary"
                             className="!px-2 !py-1 text-xs"
-                            onClick={async () => {
-                              setResultsError('')
-                              setResultsEvent({
-                                id: event.id,
-                                name: event.name,
-                              })
-                              setResultsLoading(true)
-                              try {
-                                const res = await fetchEventRegistrations(
-                                  event.id,
-                                )
-                                setResultsRows(res.data)
-                                const initial: Record<string, MatchOutcome> =
-                                  {}
-                                for (const row of res.data) {
-                                  initial[row.userId] = row.outcome ?? 'LOSS'
-                                }
-                                setOutcomes(initial)
-                              } catch (e) {
-                                setResultsError(
-                                  e instanceof Error
-                                    ? e.message
-                                    : 'Failed to load registrations',
-                                )
-                                setResultsRows([])
-                              } finally {
-                                setResultsLoading(false)
-                              }
-                            }}
+                            onClick={(e) => void openResults(event, e)}
                           >
                             Results
-                          </Button>
-                        )}
-                        {event.status === 'DRAFT' && (
-                          <Button
-                            type="button"
-                            variant="danger"
-                            className="!px-2 !py-1 text-xs"
-                            onClick={() =>
-                              setConfirmAction({
-                                id: event.id,
-                                type: 'cancel',
-                                name: event.name,
-                              })
-                            }
-                          >
-                            Cancel
                           </Button>
                         )}
                       </div>
@@ -509,7 +418,7 @@ export function EventsPage() {
 
       <Modal
         open={modalOpen}
-        title={editingId ? 'Edit event' : 'Create event'}
+        title="Create event"
         onClose={() => setModalOpen(false)}
         className="max-w-2xl"
       >
@@ -567,7 +476,13 @@ export function EventsPage() {
                   </option>
                 ))}
               </SelectInput>
-              {selectedGame ? (
+              {games.length === 0 ? (
+                <p className="mt-2 text-sm text-ink/55">
+                  No catalog games found. Run the backend seed to add{' '}
+                  {ADMIN_EVENT_GAMES.join(', ')}.
+                </p>
+              ) : null}
+              {selectedGame && ADMIN_GAME_NAME_SET.has(selectedGame.name) ? (
                 <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white/80 px-3 py-2.5">
                   {selectedGame.imageUrl ? (
                     <img
@@ -595,7 +510,10 @@ export function EventsPage() {
               <SelectInput
                 value={form.ageCategory}
                 onChange={(e) =>
-                  patchForm('ageCategory', e.target.value as EventFormState['ageCategory'])
+                  patchForm(
+                    'ageCategory',
+                    e.target.value as EventFormState['ageCategory'],
+                  )
                 }
               >
                 {AGE_CATEGORIES.map((c) => (
@@ -765,55 +683,38 @@ export function EventsPage() {
               Close
             </Button>
             <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending
-                ? 'Saving…'
-                : editingId
-                  ? 'Save changes'
-                  : 'Save draft'}
+              {saveMutation.isPending ? 'Saving…' : 'Save draft'}
             </Button>
           </div>
         </form>
       </Modal>
 
       <Modal
-        open={!!confirmAction}
-        title={
-          confirmAction?.type === 'publish'
-            ? 'Publish event'
-            : confirmAction?.type === 'complete'
-              ? 'Complete event'
-              : 'Cancel event'
-        }
-        onClose={() => setConfirmAction(null)}
+        open={!!confirmPublish}
+        title="Publish event"
+        onClose={() => setConfirmPublish(null)}
       >
         <p className="text-sm text-ink/70">
-          {confirmAction?.type === 'publish'
-            ? `Publish “${confirmAction.name}”? It will appear in the mobile app for eligible players.`
-            : confirmAction?.type === 'complete'
-              ? `Mark “${confirmAction?.name}” as completed?`
-              : `Cancel “${confirmAction?.name}”? Players will no longer see it as available.`}
+          Publish “{confirmPublish?.name}”? It will appear in the mobile app for
+          eligible players.
         </p>
         <div className="mt-5 flex justify-end gap-3">
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setConfirmAction(null)}
+            onClick={() => setConfirmPublish(null)}
           >
             Back
           </Button>
           <Button
             type="button"
-            variant={confirmAction?.type === 'cancel' ? 'danger' : 'primary'}
-            disabled={statusMutation.isPending}
+            disabled={publishMutation.isPending}
             onClick={() => {
-              if (!confirmAction) return
-              statusMutation.mutate({
-                id: confirmAction.id,
-                type: confirmAction.type,
-              })
+              if (!confirmPublish) return
+              publishMutation.mutate(confirmPublish.id)
             }}
           >
-            {statusMutation.isPending ? 'Working…' : 'Confirm'}
+            {publishMutation.isPending ? 'Working…' : 'Confirm'}
           </Button>
         </div>
       </Modal>
@@ -821,9 +722,7 @@ export function EventsPage() {
       <Modal
         open={!!resultsEvent}
         title={
-          resultsEvent
-            ? `Results · ${resultsEvent.name}`
-            : 'Event results'
+          resultsEvent ? `Results · ${resultsEvent.name}` : 'Event results'
         }
         onClose={() => {
           setResultsEvent(null)
@@ -917,9 +816,9 @@ export function EventsPage() {
                 setResultsEvent(null)
                 setResultsRows([])
                 setOutcomes({})
-              } catch (e) {
+              } catch (err) {
                 setResultsError(
-                  e instanceof Error ? e.message : 'Failed to save results',
+                  err instanceof Error ? err.message : 'Failed to save results',
                 )
               } finally {
                 setResultsSaving(false)
