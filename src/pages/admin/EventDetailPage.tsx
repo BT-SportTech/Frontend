@@ -1,12 +1,23 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { GlassPanel, Skeleton } from '../../components/ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Button,
+  CheckboxField,
+  GlassPanel,
+  Skeleton,
+} from '../../components/ui'
 import { resolveAssetUrl } from '../../lib/api'
 import {
   eventsKeys,
   fetchEvent,
   fetchEventRegistrations,
+  updateEvent,
 } from '../../lib/queries/events'
+import {
+  fetchOrganizers,
+  organizersKeys,
+} from '../../lib/queries/organizers'
 import type { EventStatus } from '../../lib/types'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -25,6 +36,10 @@ function formatWhen(iso: string) {
 
 export function EventDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
+  const queryClient = useQueryClient()
+  const [selectedOrganizerIds, setSelectedOrganizerIds] = useState<string[]>([])
+  const [assignError, setAssignError] = useState('')
+  const [assignSuccess, setAssignSuccess] = useState('')
 
   const {
     data: event,
@@ -48,6 +63,49 @@ export function EventDetailPage() {
     enabled: Boolean(id),
   })
 
+  const { data: organizersData, isPending: organizersPending } = useQuery({
+    queryKey: organizersKeys.list(),
+    queryFn: fetchOrganizers,
+  })
+
+  const organizers = organizersData?.organizers ?? []
+  const canAssign =
+    event?.status === 'DRAFT' || event?.status === 'PUBLISHED'
+
+  useEffect(() => {
+    if (event?.organizerIds) {
+      setSelectedOrganizerIds(event.organizerIds)
+    } else if (event?.organizers) {
+      setSelectedOrganizerIds(event.organizers.map((o) => o.id))
+    }
+  }, [event?.id, event?.organizerIds, event?.organizers])
+
+  const assignMutation = useMutation({
+    mutationFn: () => updateEvent(id, { organizerIds: selectedOrganizerIds }),
+    onSuccess: async () => {
+      setAssignError('')
+      setAssignSuccess('Organisers updated.')
+      await queryClient.invalidateQueries({ queryKey: eventsKeys.detail(id) })
+      await queryClient.invalidateQueries({ queryKey: eventsKeys.lists() })
+    },
+    onError: (err) => {
+      setAssignSuccess('')
+      setAssignError(
+        err instanceof Error ? err.message : 'Failed to update organisers',
+      )
+    },
+  })
+
+  function toggleOrganizer(organizerId: string) {
+    setAssignSuccess('')
+    setAssignError('')
+    setSelectedOrganizerIds((prev) =>
+      prev.includes(organizerId)
+        ? prev.filter((x) => x !== organizerId)
+        : [...prev, organizerId],
+    )
+  }
+
   const registrations = regsData?.data ?? []
   const registeredCount = event?.registeredCount ?? registrations.length
   const maxParticipants = event?.maxParticipants ?? 0
@@ -57,6 +115,17 @@ export function EventDetailPage() {
     maxParticipants > 0
       ? Math.min(100, Math.round((registeredCount / maxParticipants) * 100))
       : 0
+
+  const assignedChanged =
+    !!event &&
+    (() => {
+      const current = [...(event.organizerIds ?? event.organizers?.map((o) => o.id) ?? [])].sort()
+      const next = [...selectedOrganizerIds].sort()
+      return (
+        current.length !== next.length ||
+        current.some((value, index) => value !== next[index])
+      )
+    })()
 
   return (
     <div className="space-y-6">
@@ -153,22 +222,6 @@ export function EventDetailPage() {
                       {formatWhen(event.registrationClosesAt)}
                     </dd>
                   </div>
-                  <div className="sm:col-span-2">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink/45">
-                      Organisers
-                    </dt>
-                    <dd className="mt-0.5 font-medium text-ink">
-                      {event.organizers && event.organizers.length > 0
-                        ? event.organizers
-                            .map(
-                              (o) =>
-                                `${o.firstName} ${o.lastName}`.trim() ||
-                                o.username,
-                            )
-                            .join(', ')
-                        : 'None assigned'}
-                    </dd>
-                  </div>
                 </dl>
                 {event.description ? (
                   <p className="mt-4 text-sm leading-relaxed text-ink/70">
@@ -177,6 +230,85 @@ export function EventDetailPage() {
                 ) : null}
               </div>
             </div>
+          </GlassPanel>
+
+          <GlassPanel strong className="p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-xl font-bold text-ink">
+                  Assign organisers
+                </h2>
+                <p className="mt-1 text-sm text-ink/55">
+                  Choose who can take attendance for this event. You can set this
+                  when creating the event or update it anytime while the event is
+                  a draft or published.
+                </p>
+              </div>
+              {canAssign ? (
+                <Button
+                  type="button"
+                  disabled={
+                    !assignedChanged || assignMutation.isPending || !canAssign
+                  }
+                  onClick={() => assignMutation.mutate()}
+                >
+                  {assignMutation.isPending ? 'Saving…' : 'Save organisers'}
+                </Button>
+              ) : null}
+            </div>
+
+            {!canAssign ? (
+              <p className="mt-4 text-sm text-ink/55">
+                Organisers can’t be changed on {event.status.toLowerCase()}{' '}
+                events.
+                {event.organizers && event.organizers.length > 0
+                  ? ` Current: ${event.organizers
+                      .map(
+                        (o) =>
+                          `${o.firstName} ${o.lastName}`.trim() || o.username,
+                      )
+                      .join(', ')}`
+                  : ' None assigned.'}
+              </p>
+            ) : organizersPending ? (
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ) : organizers.length === 0 ? (
+              <p className="mt-4 text-sm text-ink/55">
+                No organisers yet.{' '}
+                <Link
+                  to="/admin/organizers"
+                  className="font-semibold text-primary hover:text-primary-hover"
+                >
+                  Invite an organiser
+                </Link>{' '}
+                first.
+              </p>
+            ) : (
+              <div className="mt-4 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+                {organizers.map((org) => (
+                  <CheckboxField
+                    key={org.id}
+                    label={`${org.firstName} ${org.lastName} (${org.email ?? org.username})`}
+                    checked={selectedOrganizerIds.includes(org.id)}
+                    onChange={() => toggleOrganizer(org.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {assignError ? (
+              <p className="mt-3 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
+                {assignError}
+              </p>
+            ) : null}
+            {assignSuccess ? (
+              <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-800">
+                {assignSuccess}
+              </p>
+            ) : null}
           </GlassPanel>
 
           <GlassPanel strong className="p-6">
