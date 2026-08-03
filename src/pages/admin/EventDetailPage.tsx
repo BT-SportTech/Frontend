@@ -287,7 +287,7 @@ export function EventDetailPage() {
                 first.
               </p>
             ) : (
-              <div className="mt-4 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+              <div className="mt-4 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
                 {organizers.map((org) => (
                   <CheckboxField
                     key={org.id}

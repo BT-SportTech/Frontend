@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { selectUser, useAuthStore } from '../stores/useAuthStore'
-import adminBackground from '../assets/background.png'
 
 const SIDEBAR_KEY = 'sporttech_organizer_sidebar_collapsed'
 
@@ -26,17 +25,9 @@ export function OrganizerLayout() {
   }, [collapsed])
 
   return (
-    <div className="relative flex min-h-full">
-      <img
-        src={adminBackground}
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-      />
-      <div className="theme-morphism-wash pointer-events-none absolute inset-0" />
-      <div className="pointer-events-none absolute inset-0 bg-white/20" />
-
+    <div className="relative flex min-h-full bg-bg">
       <aside
-        className={`glass sticky top-0 z-10 flex h-screen shrink-0 flex-col border-r border-white/60 py-6 transition-[width] duration-300 ease-out ${
+        className={`glass sticky top-0 z-10 flex h-screen shrink-0 flex-col border-r border-line py-6 transition-[width] duration-300 ease-out ${
           collapsed ? 'w-[4.75rem] px-2.5' : 'w-60 px-4'
         }`}
       >
@@ -156,7 +147,7 @@ export function OrganizerLayout() {
       </aside>
 
       <main className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-10 border-b border-white/60 px-6 py-5 backdrop-blur-xl lg:px-8">
+        <header className="glass sticky top-0 z-10 border-b border-line px-6 py-5 lg:px-8">
           <p className="text-base font-semibold text-ink/60">
             Event organiser workspace
           </p>

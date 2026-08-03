@@ -499,7 +499,7 @@ export function EventsPage() {
                 </p>
               ) : null}
               {selectedGame && ADMIN_GAME_NAME_SET.has(selectedGame.name) ? (
-                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white/80 px-3 py-2.5">
+                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white px-3 py-2.5">
                   {selectedGame.imageUrl ? (
                     <img
                       src={resolveAssetUrl(selectedGame.imageUrl)}
@@ -674,7 +674,7 @@ export function EventsPage() {
             <FieldLabel>
               Target schools (optional — empty = all eligible schools)
             </FieldLabel>
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
               {schools.length === 0 ? (
                 <p className="text-sm text-ink/50">No schools available</p>
               ) : (
@@ -692,7 +692,7 @@ export function EventsPage() {
 
           <div>
             <FieldLabel>Assign organisers (optional)</FieldLabel>
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
               {organizers.length === 0 ? (
                 <p className="text-sm text-ink/50">
                   No organisers yet — invite them from Organisers.

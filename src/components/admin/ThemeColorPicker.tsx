@@ -51,7 +51,7 @@ export function ThemeColorPicker() {
         aria-controls={panelId}
         title="Theme color"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line/80 bg-white/80 text-ink/60 transition hover:border-primary/30 hover:bg-white hover:text-primary"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-white text-ink/60 transition hover:border-primary/30 hover:text-primary"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

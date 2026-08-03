@@ -62,7 +62,7 @@ export function OrganizerEventsPage() {
             <li key={event.id}>
               <Link
                 to={`/organizer/events/${event.id}`}
-                className="block rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm transition hover:border-primary/30 hover:bg-white/80"
+                className="block rounded-2xl border border-line bg-white p-5 shadow-sm transition hover:border-primary/30"
               >
                 <div className="flex flex-wrap items-start gap-4">
                   {event.imageUrl ? (

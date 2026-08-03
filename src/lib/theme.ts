@@ -25,7 +25,6 @@ const THEME_CSS_VARS = [
   '--theme-wash-a',
   '--theme-wash-b',
   '--theme-wash-base',
-  '--theme-glass-tint',
   '--theme-wash-opacity',
 ] as const
 
@@ -122,7 +121,7 @@ function clearThemeCssOverrides() {
   }
 }
 
-/** Restore original SportTech blue morphism + accents. */
+/** Restore original SportTech blue accents. */
 export function resetThemeColor() {
   clearThemeCssOverrides()
   clearPersistedThemeColor()
@@ -156,8 +155,7 @@ export function applyThemeColor(color: string) {
   root.style.setProperty('--theme-wash-a', washA)
   root.style.setProperty('--theme-wash-b', washB)
   root.style.setProperty('--theme-wash-base', washBase)
-  root.style.setProperty('--theme-glass-tint', `rgb(${toRgbChannels(color)} / 0.1)`)
-  root.style.setProperty('--theme-wash-opacity', '1')
+  root.style.setProperty('--theme-wash-opacity', '0')
 }
 
 export function initializeTheme() {
