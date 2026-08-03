@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { api, clearTokens, getAccessToken, getRefreshToken, setTokens } from '../lib/api'
-import type { AuthResponse, AuthUser } from '../lib/types'
+import type { AuthResponse, AuthUser, UserRole } from '../lib/types'
 import type { AuthStore } from '../interfaces'
 
 const USER_KEY = 'sporttech_user'
+const WEB_ROLES: UserRole[] = ['ADMIN', 'ORGANIZER']
 
 function readStoredUser(): AuthUser | null {
   try {
@@ -29,10 +30,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
       auth: false,
     })
 
-    if (data.user.role !== 'ADMIN') {
-      throw new Error('Access denied. Admin accounts only.')
+    if (!WEB_ROLES.includes(data.user.role)) {
+      throw new Error('Access denied. Admin or organizer accounts only.')
     }
 
+    setTokens(data.accessToken, data.refreshToken)
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+    set({ user: data.user })
+  },
+
+  acceptInviteSession: (data: AuthResponse) => {
+    if (data.user.role !== 'ORGANIZER') {
+      throw new Error('Invite acceptance did not return an organizer account.')
+    }
     setTokens(data.accessToken, data.refreshToken)
     localStorage.setItem(USER_KEY, JSON.stringify(data.user))
     set({ user: data.user })
@@ -61,5 +71,8 @@ export const selectIsAuthenticated = (state: AuthStore) =>
   Boolean(state.user && getAccessToken())
 
 export const selectIsAdmin = (state: AuthStore) => state.user?.role === 'ADMIN'
+
+export const selectIsOrganizer = (state: AuthStore) =>
+  state.user?.role === 'ORGANIZER'
 
 export const selectUser = (state: AuthStore) => state.user

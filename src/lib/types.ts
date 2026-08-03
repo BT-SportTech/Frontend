@@ -1,4 +1,4 @@
-export type UserRole = 'PLAYER' | 'PROFESSIONAL' | 'ADMIN'
+export type UserRole = 'PLAYER' | 'PROFESSIONAL' | 'ADMIN' | 'ORGANIZER'
 
 export type SchoolType =
   | 'PUBLIC'
@@ -173,6 +173,16 @@ export interface SportEvent {
   imageUrl?: string | null
   schoolIds: string[]
   schools: EventSchoolRef[]
+  organizerIds?: string[]
+  organizers?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string | null
+    username: string
+  }[]
+  attendanceWindowOpen?: boolean
+  attendanceOpensAt?: string
   createdBy?: {
     id: string
     firstName: string
@@ -197,6 +207,7 @@ export interface EventPayload {
   ageCategory: AgeCategory
   genders: Gender[]
   schoolIds: string[]
+  organizerIds: string[]
   fee: number
   pointsReward: number
   imageUrl?: string | null

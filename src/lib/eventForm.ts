@@ -40,6 +40,7 @@ export type EventFormState = {
   ageCategory: AgeCategory
   genders: Gender[]
   schoolIds: string[]
+  organizerIds: string[]
   fee: string
   pointsReward: string
   imageUrl: string
@@ -88,6 +89,7 @@ export function emptyEventForm(): EventFormState {
     ageCategory: 'U16',
     genders: [],
     schoolIds: [],
+    organizerIds: [],
     fee: '0',
     pointsReward: '50',
     imageUrl: '',
@@ -113,6 +115,7 @@ export function formToEventPayload(form: EventFormState): EventPayload {
     ageCategory: form.ageCategory,
     genders: form.genders,
     schoolIds: form.schoolIds,
+    organizerIds: form.organizerIds,
     fee: Math.max(0, parseFloat(form.fee) || 0),
     pointsReward: Math.max(0, parseInt(form.pointsReward, 10) || 0),
     imageUrl: form.imageUrl.trim() || null,

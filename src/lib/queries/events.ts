@@ -90,6 +90,13 @@ export type EventRegistrationRow = {
   outcome: MatchOutcome | null
   pointsEarned: number
   registeredAt: string
+  attendedAt?: string | null
+  attendedById?: string | null
+  attendedBy?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
   user: {
     id: string
     firstName: string
@@ -102,6 +109,8 @@ export type EventRegistrationRow = {
 export async function fetchEventRegistrations(eventId: string): Promise<{
   eventId: string
   data: EventRegistrationRow[]
+  attendanceWindowOpen?: boolean
+  attendanceOpensAt?: string
 }> {
   return api(`/events/${eventId}/registrations`)
 }

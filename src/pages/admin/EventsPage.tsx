@@ -33,6 +33,7 @@ import {
   type MatchOutcome,
 } from '../../lib/queries/events'
 import { fetchGames, gamesKeys } from '../../lib/queries/games'
+import { fetchOrganizers, organizersKeys } from '../../lib/queries/organizers'
 import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
 import type { EventStatus, Gender, SportEvent } from '../../lib/types'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
@@ -116,10 +117,16 @@ export function EventsPage() {
     queryFn: () => fetchGames({ page: 1, limit: 100, isActive: true }),
   })
 
+  const { data: organizersData } = useQuery({
+    queryKey: organizersKeys.list(),
+    queryFn: fetchOrganizers,
+  })
+
   const events = data?.data ?? []
   const total = data?.meta.total ?? 0
   const totalPages = data?.meta.totalPages ?? 0
   const schools = schoolsData?.data ?? []
+  const organizers = organizersData?.organizers ?? []
   const games = useMemo(() => {
     const active = gamesData?.data ?? []
     return ADMIN_EVENT_GAMES.map((name) =>
@@ -195,6 +202,15 @@ export function EventsPage() {
       schoolIds: prev.schoolIds.includes(schoolId)
         ? prev.schoolIds.filter((id) => id !== schoolId)
         : [...prev.schoolIds, schoolId],
+    }))
+  }
+
+  function toggleOrganizer(organizerId: string) {
+    setForm((prev) => ({
+      ...prev,
+      organizerIds: prev.organizerIds.includes(organizerId)
+        ? prev.organizerIds.filter((id) => id !== organizerId)
+        : [...prev.organizerIds, organizerId],
     }))
   }
 
@@ -668,6 +684,26 @@ export function EventsPage() {
                     label={`${school.name} (${school.code})`}
                     checked={form.schoolIds.includes(school.id)}
                     onChange={() => toggleSchool(school.id)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Assign organisers (optional)</FieldLabel>
+            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+              {organizers.length === 0 ? (
+                <p className="text-sm text-ink/50">
+                  No organisers yet — invite them from Organisers.
+                </p>
+              ) : (
+                organizers.map((org) => (
+                  <CheckboxField
+                    key={org.id}
+                    label={`${org.firstName} ${org.lastName} (${org.email ?? org.username})`}
+                    checked={form.organizerIds.includes(org.id)}
+                    onChange={() => toggleOrganizer(org.id)}
                   />
                 ))
               )}

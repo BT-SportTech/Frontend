@@ -1,105 +1,12 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { AdminHeaderSearch } from '../components/admin/AdminHeaderSearch'
-import { ThemeColorPicker } from '../components/admin/ThemeColorPicker'
 import { Button } from '../components/ui'
 import { selectUser, useAuthStore } from '../stores/useAuthStore'
 import adminBackground from '../assets/background.png'
 
-const SIDEBAR_KEY = 'sporttech_admin_sidebar_collapsed'
+const SIDEBAR_KEY = 'sporttech_organizer_sidebar_collapsed'
 
-const nav = [
-  {
-    to: '/admin',
-    label: 'Dashboard',
-    end: true,
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-5 w-5 shrink-0"
-        aria-hidden
-      >
-        <rect width="7" height="9" x="3" y="3" rx="1" />
-        <rect width="7" height="5" x="14" y="3" rx="1" />
-        <rect width="7" height="9" x="14" y="12" rx="1" />
-        <rect width="7" height="5" x="3" y="16" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    to: '/admin/schools',
-    label: 'Schools',
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-5 w-5 shrink-0"
-        aria-hidden
-      >
-        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-        <path d="M6 12v5c3 3 9 3 12 0v-5" />
-      </svg>
-    ),
-  },
-  {
-    to: '/admin/events',
-    label: 'Events',
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-5 w-5 shrink-0"
-        aria-hidden
-      >
-        <path d="M8 2v4" />
-        <path d="M16 2v4" />
-        <rect width="18" height="18" x="3" y="4" rx="2" />
-        <path d="M3 10h18" />
-        <path d="m9 16 2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
-    to: '/admin/organizers',
-    label: 'Organisers',
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-5 w-5 shrink-0"
-        aria-hidden
-      >
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-]
-
-export function AdminLayout() {
+export function OrganizerLayout() {
   const user = useAuthStore(selectUser)
   const logout = useAuthStore((state) => state.logout)
   const [collapsed, setCollapsed] = useState(() => {
@@ -147,7 +54,7 @@ export function AdminLayout() {
                   SportTech
                 </p>
                 <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-secondary">
-                  Admin
+                  Organiser
                 </p>
               </>
             )}
@@ -156,7 +63,6 @@ export function AdminLayout() {
             type="button"
             onClick={() => setCollapsed((value) => !value)}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink/55 transition hover:bg-white hover:text-primary"
           >
             <svg
@@ -176,31 +82,41 @@ export function AdminLayout() {
         </div>
 
         <nav className="mt-8 flex flex-1 flex-col gap-1">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              title={item.label}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg py-2.5 text-sm font-semibold transition ${
-                  collapsed ? 'justify-center px-0' : 'px-3'
-                } ${
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'text-ink/65 hover:bg-white hover:text-primary'
-                }`
-              }
+          <NavLink
+            to="/organizer"
+            end
+            title="My events"
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-lg py-2.5 text-sm font-semibold transition ${
+                collapsed ? 'justify-center px-0' : 'px-3'
+              } ${
+                isActive
+                  ? 'bg-primary text-white'
+                  : 'text-ink/65 hover:bg-white hover:text-primary'
+              }`
+            }
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5 shrink-0"
+              aria-hidden
             >
-              {item.icon}
-              {!collapsed ? <span>{item.label}</span> : null}
-            </NavLink>
-          ))}
+              <path d="M8 2v4" />
+              <path d="M16 2v4" />
+              <rect width="18" height="18" x="3" y="4" rx="2" />
+              <path d="M3 10h18" />
+            </svg>
+            {!collapsed ? <span>My events</span> : null}
+          </NavLink>
         </nav>
 
-        <div
-          className={`border-t border-line/80 pt-4 ${collapsed ? 'px-0' : ''}`}
-        >
+        <div className={`border-t border-line/80 pt-4 ${collapsed ? 'px-0' : ''}`}>
           {!collapsed ? (
             <>
               <p className="truncate px-2 text-sm font-semibold text-ink">
@@ -241,15 +157,9 @@ export function AdminLayout() {
 
       <main className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className="glass sticky top-0 z-10 border-b border-white/60 px-6 py-5 backdrop-blur-xl lg:px-8">
-          <div className="flex min-h-12 items-center gap-4 lg:gap-6">
-            <p className="shrink-0 text-base font-semibold text-ink/60">
-              SportTech Admin Console
-            </p>
-            <div className="ml-auto w-1/2 min-w-0">
-              <AdminHeaderSearch />
-            </div>
-            <ThemeColorPicker />
-          </div>
+          <p className="text-base font-semibold text-ink/60">
+            Event organiser workspace
+          </p>
         </header>
         <div className="animate-fade-in flex-1 p-6 lg:p-8">
           <Outlet />

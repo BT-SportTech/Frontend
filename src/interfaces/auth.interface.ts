@@ -1,4 +1,4 @@
-import type { AuthUser } from '../lib/types'
+import type { AuthResponse, AuthUser } from '../lib/types'
 
 export interface AuthStoreState {
   user: AuthUser | null
@@ -6,6 +6,7 @@ export interface AuthStoreState {
 
 export interface AuthStoreActions {
   login: (email: string, password: string) => Promise<void>
+  acceptInviteSession: (data: AuthResponse) => void
   logout: () => Promise<void>
 }
 

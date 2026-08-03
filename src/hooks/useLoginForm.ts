@@ -38,7 +38,8 @@ export function useLoginForm() {
     setLoading(true)
     try {
       await login(result.data.email.trim(), result.data.password)
-      navigate('/admin', { replace: true })
+      const role = useAuthStore.getState().user?.role
+      navigate(role === 'ORGANIZER' ? '/organizer' : '/admin', { replace: true })
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to sign in')
     } finally {

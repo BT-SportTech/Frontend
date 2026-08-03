@@ -153,6 +153,22 @@ export function EventDetailPage() {
                       {formatWhen(event.registrationClosesAt)}
                     </dd>
                   </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink/45">
+                      Organisers
+                    </dt>
+                    <dd className="mt-0.5 font-medium text-ink">
+                      {event.organizers && event.organizers.length > 0
+                        ? event.organizers
+                            .map(
+                              (o) =>
+                                `${o.firstName} ${o.lastName}`.trim() ||
+                                o.username,
+                            )
+                            .join(', ')
+                        : 'None assigned'}
+                    </dd>
+                  </div>
                 </dl>
                 {event.description ? (
                   <p className="mt-4 text-sm leading-relaxed text-ink/70">
@@ -203,6 +219,7 @@ export function EventDetailPage() {
                       <th className="px-3 py-2.5 font-semibold">Player</th>
                       <th className="px-3 py-2.5 font-semibold">Username</th>
                       <th className="px-3 py-2.5 font-semibold">Email</th>
+                      <th className="px-3 py-2.5 font-semibold">Attendance</th>
                       <th className="px-3 py-2.5 font-semibold">Registered</th>
                     </tr>
                   </thead>
@@ -224,6 +241,15 @@ export function EventDetailPage() {
                           </td>
                           <td className="px-3 py-2.5 text-ink/80">
                             {row.user.email ?? '—'}
+                          </td>
+                          <td className="px-3 py-2.5 text-ink/80">
+                            {row.attendedAt ? (
+                              <span className="font-semibold text-emerald-700">
+                                Present
+                              </span>
+                            ) : (
+                              <span className="text-ink/45">—</span>
+                            )}
                           </td>
                           <td className="px-3 py-2.5 text-ink/80">
                             {formatWhen(row.registeredAt)}
