@@ -1,4 +1,4 @@
-export type UserRole = 'STUDENT' | 'PROFESSIONAL' | 'ADMIN'
+export type UserRole = 'PLAYER' | 'PROFESSIONAL' | 'ADMIN'
 
 export type SchoolType =
   | 'PUBLIC'

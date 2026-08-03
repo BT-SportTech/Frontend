@@ -32,7 +32,7 @@ export function UsersPage() {
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Users</h1>
         <p className="mt-1.5 text-sm text-ink/55">
-          Browse students, professionals, and admins
+          Browse players, professionals, and admins
         </p>
       </div>
 

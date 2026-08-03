@@ -791,7 +791,7 @@ export function EventsPage() {
             ? `Publish “${confirmAction.name}”? It will appear in the mobile app for eligible players.`
             : confirmAction?.type === 'complete'
               ? `Mark “${confirmAction?.name}” as completed?`
-              : `Cancel “${confirmAction?.name}”? Students will no longer see it as available.`}
+              : `Cancel “${confirmAction?.name}”? Players will no longer see it as available.`}
         </p>
         <div className="mt-5 flex justify-end gap-3">
           <Button

@@ -52,8 +52,8 @@ export function DashboardPage() {
           to="/admin/users"
         />
         <StatCard
-          label="Students"
-          value={stats?.students}
+          label="Players"
+          value={stats?.players}
           loading={loading}
           accent="primary"
           to="/admin/users"

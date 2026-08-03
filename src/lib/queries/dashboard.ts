@@ -6,7 +6,7 @@ export interface DashboardStats {
   schoolsActive: number
   schoolsInactive: number
   usersTotal: number
-  students: number
+  players: number
   professionals: number
   byType: Record<SchoolType, number>
   recentSchools: SchoolListItem[]
@@ -25,7 +25,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     schoolsActive,
     schoolsInactive,
     usersTotal,
-    students,
+    players,
     professionals,
     recent,
     ...typeCounts
@@ -33,7 +33,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     api<Paginated<SchoolListItem>>('/schools?page=1&limit=1'),
     api<Paginated<SchoolListItem>>('/schools?page=1&limit=1&isActive=false'),
     api<Paginated<unknown>>('/users?page=1&limit=1'),
-    api<Paginated<unknown>>('/users?page=1&limit=1&role=STUDENT'),
+    api<Paginated<unknown>>('/users?page=1&limit=1&role=PLAYER'),
     api<Paginated<unknown>>('/users?page=1&limit=1&role=PROFESSIONAL'),
     api<Paginated<SchoolListItem>>('/schools?page=1&limit=5'),
     ...SCHOOL_TYPES.map((type) =>
@@ -50,7 +50,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     schoolsActive: schoolsActive.meta.total,
     schoolsInactive: schoolsInactive.meta.total,
     usersTotal: usersTotal.meta.total,
-    students: students.meta.total,
+    players: players.meta.total,
     professionals: professionals.meta.total,
     byType,
     recentSchools: recent.data,
