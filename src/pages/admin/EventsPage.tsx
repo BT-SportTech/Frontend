@@ -220,6 +220,13 @@ export function EventsPage() {
       setActionError('Select a game.')
       return
     }
+    if (selectedGame?.name === 'Chess') {
+      const boards = parseInt(form.boardCount, 10)
+      if (!boards || boards < 1) {
+        setActionError('Board count is required for Chess events (at least 1).')
+        return
+      }
+    }
     const hasState = Boolean(form.state.trim())
     const hasDistrict = Boolean(form.district.trim())
     if (hasState !== hasDistrict) {
@@ -604,6 +611,39 @@ export function EventsPage() {
                 onChange={(e) => patchForm('maxParticipants', e.target.value)}
               />
             </div>
+            {selectedGame?.name === 'Chess' ? (
+              <>
+                <div>
+                  <FieldLabel>Chess boards</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    required
+                    value={form.boardCount}
+                    onChange={(e) => patchForm('boardCount', e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-ink/50">
+                    How many boards are available at the venue. Organizers can
+                    override when starting matchmaking.
+                  </p>
+                </div>
+                <div>
+                  <FieldLabel>Games per player</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    value={form.gamesPerPlayer}
+                    onChange={(e) =>
+                      patchForm('gamesPerPlayer', e.target.value)
+                    }
+                  />
+                  <p className="mt-1 text-xs text-ink/50">
+                    How many games each player must play (e.g. 3). Pairing
+                    sessions repeat as needed based on board count.
+                  </p>
+                </div>
+              </>
+            ) : null}
             <div>
               <FieldLabel>Fee</FieldLabel>
               <TextInput
