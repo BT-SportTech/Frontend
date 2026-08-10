@@ -97,6 +97,20 @@ export type EventRegistrationRow = {
     firstName: string
     lastName: string
   } | null
+  withdrawnAt?: string | null
+  withdrawnById?: string | null
+  withdrawnBy?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
+  eventWins?: number
+  eventLosses?: number
+  eventDraws?: number
+  gamesCompleted?: number
+  whiteGames?: number
+  blackGames?: number
+  chessRating?: number | null
   user: {
     id: string
     firstName: string

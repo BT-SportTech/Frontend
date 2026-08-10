@@ -43,6 +43,8 @@ export type EventFormState = {
   organizerIds: string[]
   fee: string
   pointsReward: string
+  boardCount: string
+  gamesPerPlayer: string
   imageUrl: string
   imageFile: File | null
 }
@@ -92,12 +94,17 @@ export function emptyEventForm(): EventFormState {
     organizerIds: [],
     fee: '0',
     pointsReward: '50',
+    boardCount: '10',
+    gamesPerPlayer: '3',
     imageUrl: '',
     imageFile: null,
   }
 }
 
 export function formToEventPayload(form: EventFormState): EventPayload {
+  const boardCount = Math.max(1, parseInt(form.boardCount, 10) || 1)
+  const gamesPerPlayer = Math.max(1, parseInt(form.gamesPerPlayer, 10) || 3)
+
   return {
     name: form.name.trim(),
     gameId: form.gameId,
@@ -118,6 +125,8 @@ export function formToEventPayload(form: EventFormState): EventPayload {
     organizerIds: form.organizerIds,
     fee: Math.max(0, parseFloat(form.fee) || 0),
     pointsReward: Math.max(0, parseInt(form.pointsReward, 10) || 0),
+    boardCount,
+    gamesPerPlayer,
     imageUrl: form.imageUrl.trim() || null,
   }
 }

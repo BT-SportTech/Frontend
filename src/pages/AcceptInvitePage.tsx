@@ -64,7 +64,7 @@ export function AcceptInvitePage() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-[radial-gradient(ellipse_at_top,_#e8f5ef_0%,_#f7faf8_45%,_#eef2f0_100%)] px-4 py-12">
+    <div className="flex min-h-full items-center justify-center bg-bg px-4 py-12">
       <GlassPanel className="w-full max-w-md p-8">
         <p className="font-display text-2xl font-bold tracking-tight text-primary">
           SportTech
@@ -107,7 +107,7 @@ export function AcceptInvitePage() {
               <label className="block text-sm font-semibold text-ink">
                 Username
                 <input
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white/80 px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
+                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
@@ -117,7 +117,7 @@ export function AcceptInvitePage() {
                 Password
                 <input
                   type="password"
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white/80 px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
+                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
@@ -128,7 +128,7 @@ export function AcceptInvitePage() {
                 Confirm password
                 <input
                   type="password"
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white/80 px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
+                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   autoComplete="new-password"

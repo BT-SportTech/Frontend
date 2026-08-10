@@ -10,6 +10,7 @@ import { DashboardPage } from './pages/admin/DashboardPage'
 import { EventDetailPage } from './pages/admin/EventDetailPage'
 import { EventsPage } from './pages/admin/EventsPage'
 import { OrganizersPage } from './pages/admin/OrganizersPage'
+import { SchoolDetailPage } from './pages/admin/SchoolDetailPage'
 import { SchoolsPage } from './pages/admin/SchoolsPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { LoginPage } from './pages/LoginPage'
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="schools" element={<SchoolsPage />} />
+              <Route path="schools/:id" element={<SchoolDetailPage />} />
               <Route path="events" element={<EventsPage />} />
               <Route path="events/:id" element={<EventDetailPage />} />
               <Route path="organizers" element={<OrganizersPage />} />

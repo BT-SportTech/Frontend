@@ -112,6 +112,8 @@ export interface UserListItem {
 
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED'
 
+export type MatchmakingStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
+
 export type AgeCategory = 'U12' | 'U14' | 'U16' | 'U18' | 'OPEN'
 
 export interface EventSchoolRef {
@@ -170,6 +172,10 @@ export interface SportEvent {
   genders: Gender[]
   fee: number
   pointsReward: number
+  boardCount?: number | null
+  gamesPerPlayer?: number
+  matchmakingStatus?: MatchmakingStatus
+  matchmakingStartedAt?: string | null
   imageUrl?: string | null
   schoolIds: string[]
   schools: EventSchoolRef[]
@@ -210,5 +216,7 @@ export interface EventPayload {
   organizerIds: string[]
   fee: number
   pointsReward: number
+  boardCount?: number
+  gamesPerPlayer?: number
   imageUrl?: string | null
 }

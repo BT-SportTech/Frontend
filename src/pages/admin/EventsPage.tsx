@@ -220,6 +220,13 @@ export function EventsPage() {
       setActionError('Select a game.')
       return
     }
+    if (selectedGame?.name === 'Chess') {
+      const boards = parseInt(form.boardCount, 10)
+      if (!boards || boards < 1) {
+        setActionError('Board count is required for Chess events (at least 1).')
+        return
+      }
+    }
     const hasState = Boolean(form.state.trim())
     const hasDistrict = Boolean(form.district.trim())
     if (hasState !== hasDistrict) {
@@ -499,7 +506,7 @@ export function EventsPage() {
                 </p>
               ) : null}
               {selectedGame && ADMIN_GAME_NAME_SET.has(selectedGame.name) ? (
-                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white/80 px-3 py-2.5">
+                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white px-3 py-2.5">
                   {selectedGame.imageUrl ? (
                     <img
                       src={resolveAssetUrl(selectedGame.imageUrl)}
@@ -604,6 +611,39 @@ export function EventsPage() {
                 onChange={(e) => patchForm('maxParticipants', e.target.value)}
               />
             </div>
+            {selectedGame?.name === 'Chess' ? (
+              <>
+                <div>
+                  <FieldLabel>Chess boards</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    required
+                    value={form.boardCount}
+                    onChange={(e) => patchForm('boardCount', e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-ink/50">
+                    How many boards are available at the venue. Organizers can
+                    override when starting matchmaking.
+                  </p>
+                </div>
+                <div>
+                  <FieldLabel>Games per player</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    value={form.gamesPerPlayer}
+                    onChange={(e) =>
+                      patchForm('gamesPerPlayer', e.target.value)
+                    }
+                  />
+                  <p className="mt-1 text-xs text-ink/50">
+                    How many games each player must play (e.g. 3). Pairing
+                    sessions repeat as needed based on board count.
+                  </p>
+                </div>
+              </>
+            ) : null}
             <div>
               <FieldLabel>Fee</FieldLabel>
               <TextInput
@@ -674,7 +714,7 @@ export function EventsPage() {
             <FieldLabel>
               Target schools (optional — empty = all eligible schools)
             </FieldLabel>
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
               {schools.length === 0 ? (
                 <p className="text-sm text-ink/50">No schools available</p>
               ) : (
@@ -692,7 +732,7 @@ export function EventsPage() {
 
           <div>
             <FieldLabel>Assign organisers (optional)</FieldLabel>
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white/70 p-3">
+            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
               {organizers.length === 0 ? (
                 <p className="text-sm text-ink/50">
                   No organisers yet — invite them from Organisers.

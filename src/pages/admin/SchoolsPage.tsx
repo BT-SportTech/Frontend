@@ -300,7 +300,26 @@ export function SchoolsPage() {
                 schools.map((s) => (
                   <tr
                     key={s.id}
-                    className="border-b border-line/50 transition hover:bg-accent/25"
+                    role="link"
+                    tabIndex={0}
+                    className="cursor-pointer border-b border-line/50 transition hover:bg-accent/25"
+                    onClick={() =>
+                      window.open(
+                        `/admin/schools/${s.id}`,
+                        '_blank',
+                        'noopener,noreferrer',
+                      )
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        window.open(
+                          `/admin/schools/${s.id}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                      }
+                    }}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -361,7 +380,11 @@ export function SchoolsPage() {
                         {s.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      className="px-4 py-3"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
                       <div className="flex items-center gap-1.5">
                         <Button
                           variant="ghost"
