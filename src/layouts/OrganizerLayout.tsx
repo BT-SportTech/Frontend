@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '../components/ui'
 import { selectUser, useAuthStore } from '../stores/useAuthStore'
 
-const SIDEBAR_KEY = 'sporttech_organizer_sidebar_collapsed'
+const SIDEBAR_KEY = 'Sportech_organizer_sidebar_collapsed'
 
 export function OrganizerLayout() {
   const user = useAuthStore(selectUser)
@@ -42,7 +42,7 @@ export function OrganizerLayout() {
             ) : (
               <>
                 <p className="font-display text-xl font-bold tracking-tight text-primary">
-                  SportTech
+                  Sportech
                 </p>
                 <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-secondary">
                   Organiser

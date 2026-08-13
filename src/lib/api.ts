@@ -11,8 +11,8 @@ export function resolveAssetUrl(url: string): string {
   return `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`
 }
 
-const ACCESS_KEY = 'sporttech_access_token'
-const REFRESH_KEY = 'sporttech_refresh_token'
+const ACCESS_KEY = 'Sportech_access_token'
+const REFRESH_KEY = 'Sportech_refresh_token'
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_KEY)

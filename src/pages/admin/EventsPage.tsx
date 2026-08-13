@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type FormEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Pagination } from '../../components/Pagination'
@@ -37,6 +37,7 @@ import { fetchOrganizers, organizersKeys } from '../../lib/queries/organizers'
 import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
 import type { EventStatus, Gender, SportEvent } from '../../lib/types'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+import { toast } from '../../stores/useToastStore'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
   DRAFT: 'bg-ink/10 text-ink/70',
@@ -62,7 +63,6 @@ export function EventsPage() {
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
   const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('')
-  const [actionError, setActionError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<EventFormState>(emptyEventForm())
   const [confirmPublish, setConfirmPublish] = useState<{
@@ -76,7 +76,6 @@ export function EventsPage() {
   const [resultsRows, setResultsRows] = useState<EventRegistrationRow[]>([])
   const [outcomes, setOutcomes] = useState<Record<string, MatchOutcome>>({})
   const [resultsLoading, setResultsLoading] = useState(false)
-  const [resultsError, setResultsError] = useState('')
   const [resultsSaving, setResultsSaving] = useState(false)
 
   if (search !== prevSearch) {
@@ -149,11 +148,11 @@ export function EventsPage() {
     mutationFn: async () => saveEvent({ editingId: null, form }),
     onSuccess: async () => {
       setModalOpen(false)
-      setActionError('')
+      toast.success('Event saved as draft.')
       await invalidate()
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Save failed')
+      toast.error(err instanceof Error ? err.message : 'Save failed')
     },
   })
 
@@ -161,18 +160,24 @@ export function EventsPage() {
     mutationFn: async (id: string) => publishEvent(id),
     onSuccess: async () => {
       setConfirmPublish(null)
-      setActionError('')
+      toast.success('Event published.')
       await invalidate()
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Publish failed')
+      toast.error(err instanceof Error ? err.message : 'Publish failed')
       setConfirmPublish(null)
     },
   })
 
+  useEffect(() => {
+    if (!isError) return
+    toast.error(
+      listError instanceof Error ? listError.message : 'Failed to load events',
+    )
+  }, [isError, listError])
+
   function openCreate() {
     setForm(emptyEventForm())
-    setActionError('')
     setModalOpen(true)
   }
 
@@ -217,20 +222,20 @@ export function EventsPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form.gameId) {
-      setActionError('Select a game.')
+      toast.error('Select a game.')
       return
     }
     if (selectedGame?.name === 'Chess') {
       const boards = parseInt(form.boardCount, 10)
       if (!boards || boards < 1) {
-        setActionError('Board count is required for Chess events (at least 1).')
+        toast.error('Board count is required for Chess events (at least 1).')
         return
       }
     }
     const hasState = Boolean(form.state.trim())
     const hasDistrict = Boolean(form.district.trim())
     if (hasState !== hasDistrict) {
-      setActionError(
+      toast.error(
         'Set both state and district for a zone, or leave both empty for nationwide.',
       )
       return
@@ -240,7 +245,6 @@ export function EventsPage() {
 
   async function openResults(event: SportEvent, e: MouseEvent) {
     e.stopPropagation()
-    setResultsError('')
     setResultsEvent({ id: event.id, name: event.name })
     setResultsLoading(true)
     try {
@@ -252,7 +256,7 @@ export function EventsPage() {
       }
       setOutcomes(initial)
     } catch (err) {
-      setResultsError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to load registrations',
       )
       setResultsRows([])
@@ -292,15 +296,6 @@ export function EventsPage() {
           </Button>
         </div>
       </div>
-
-      {actionError || isError ? (
-        <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-          {actionError ||
-            (listError instanceof Error
-              ? listError.message
-              : 'Failed to load events')}
-        </p>
-      ) : null}
 
       <GlassPanel strong className="overflow-hidden">
         <div className="min-h-[28rem] overflow-x-auto">
@@ -804,7 +799,6 @@ export function EventsPage() {
           setResultsEvent(null)
           setResultsRows([])
           setOutcomes({})
-          setResultsError('')
         }}
       >
         <p className="mb-4 text-sm text-ink/70">
@@ -855,9 +849,6 @@ export function EventsPage() {
             })}
           </div>
         )}
-        {resultsError ? (
-          <p className="mt-3 text-sm text-red-600">{resultsError}</p>
-        ) : null}
         <div className="mt-5 flex justify-end gap-3">
           <Button
             type="button"
@@ -866,7 +857,6 @@ export function EventsPage() {
               setResultsEvent(null)
               setResultsRows([])
               setOutcomes({})
-              setResultsError('')
             }}
           >
             Close
@@ -879,7 +869,6 @@ export function EventsPage() {
             onClick={async () => {
               if (!resultsEvent) return
               setResultsSaving(true)
-              setResultsError('')
               try {
                 await submitEventResults(
                   resultsEvent.id,
@@ -892,8 +881,9 @@ export function EventsPage() {
                 setResultsEvent(null)
                 setResultsRows([])
                 setOutcomes({})
+                toast.success('Results saved and event marked complete.')
               } catch (err) {
-                setResultsError(
+                toast.error(
                   err instanceof Error ? err.message : 'Failed to save results',
                 )
               } finally {

@@ -11,7 +11,7 @@ export const THEME_PRESETS = [
   { name: 'Slate', value: '#334155' },
 ] as const
 
-const THEME_KEY = 'sporttech_theme_color'
+const THEME_KEY = 'Sportech_theme_color'
 
 const THEME_CSS_VARS = [
   '--color-primary',
@@ -121,7 +121,7 @@ function clearThemeCssOverrides() {
   }
 }
 
-/** Restore original SportTech blue accents. */
+/** Restore original Sportech blue accents. */
 export function resetThemeColor() {
   clearThemeCssOverrides()
   clearPersistedThemeColor()

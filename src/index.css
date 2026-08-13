@@ -144,3 +144,15 @@
     transform: translateX(100%);
   }
 }
+
+.admin-toaster {
+  font-family: var(--font-sans);
+}
+
+.admin-toaster .admin-toast {
+  border-radius: 0 !important;
+}
+
+.admin-toaster > div {
+  margin: 0;
+}

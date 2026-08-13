@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button, GlassPanel, Skeleton } from '../components/ui'
+import { LoginFormField } from '../components/login/LoginFormField'
 import {
   acceptOrganizerInvite,
   fetchInvitePreview,
@@ -67,7 +68,7 @@ export function AcceptInvitePage() {
     <div className="flex min-h-full items-center justify-center bg-bg px-4 py-12">
       <GlassPanel className="w-full max-w-md p-8">
         <p className="font-display text-2xl font-bold tracking-tight text-primary">
-          SportTech
+          Sportech
         </p>
         <h1 className="mt-2 text-xl font-semibold text-ink">
           Accept organiser invite
@@ -104,37 +105,31 @@ export function AcceptInvitePage() {
               .
             </p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
-              <label className="block text-sm font-semibold text-ink">
-                Username
-                <input
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
-                />
-              </label>
-              <label className="block text-sm font-semibold text-ink">
-                Password
-                <input
-                  type="password"
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-              <label className="block text-sm font-semibold text-ink">
-                Confirm password
-                <input
-                  type="password"
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none ring-primary/30 focus:ring-2"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
+              <LoginFormField
+                label="Username"
+                name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+              />
+              <LoginFormField
+                label="Password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <LoginFormField
+                label="Confirm password"
+                name="confirmPassword"
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
               {formError ? (
                 <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
                   {formError}

@@ -3,9 +3,10 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { AdminHeaderSearch } from '../components/admin/AdminHeaderSearch'
 import { ThemeColorPicker } from '../components/admin/ThemeColorPicker'
 import { Button } from '../components/ui'
+import { ToastViewport } from '../components/ui/Toast'
 import { selectUser, useAuthStore } from '../stores/useAuthStore'
 
-const SIDEBAR_KEY = 'sporttech_admin_sidebar_collapsed'
+const SIDEBAR_KEY = 'Sportech_admin_sidebar_collapsed'
 
 const nav = [
   {
@@ -135,7 +136,7 @@ export function AdminLayout() {
             ) : (
               <>
                 <p className="font-display text-xl font-bold tracking-tight text-primary">
-                  SportTech
+                  Sportech
                 </p>
                 <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-secondary">
                   Admin
@@ -234,7 +235,7 @@ export function AdminLayout() {
         <header className="glass sticky top-0 z-10 border-b border-line px-6 py-5 lg:px-8">
           <div className="flex min-h-12 items-center gap-4 lg:gap-6">
             <p className="shrink-0 text-base font-semibold text-ink/60">
-              SportTech Admin Console
+              Sportech Admin Console
             </p>
             <div className="ml-auto w-1/2 min-w-0">
               <AdminHeaderSearch />
@@ -246,6 +247,7 @@ export function AdminLayout() {
           <Outlet />
         </div>
       </main>
+      <ToastViewport />
     </div>
   )
 }

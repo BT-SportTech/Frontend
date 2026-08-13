@@ -1,7 +1,7 @@
 import type { SchoolFormState } from '../interfaces/school.interface'
 import { emptySchoolForm } from './schoolForm'
 
-const DRAFT_KEY = 'sporttech_school_form_draft'
+const DRAFT_KEY = 'Sportech_school_form_draft'
 
 export interface SchoolFormDraft {
   editingId: string | null

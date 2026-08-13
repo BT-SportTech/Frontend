@@ -19,6 +19,7 @@ import {
   organizersKeys,
 } from '../../lib/queries/organizers'
 import type { EventStatus } from '../../lib/types'
+import { toast } from '../../stores/useToastStore'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
   DRAFT: 'bg-ink/10 text-ink/70',
@@ -38,8 +39,6 @@ export function EventDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [selectedOrganizerIds, setSelectedOrganizerIds] = useState<string[]>([])
-  const [assignError, setAssignError] = useState('')
-  const [assignSuccess, setAssignSuccess] = useState('')
 
   const {
     data: event,
@@ -83,28 +82,33 @@ export function EventDetailPage() {
   const assignMutation = useMutation({
     mutationFn: () => updateEvent(id, { organizerIds: selectedOrganizerIds }),
     onSuccess: async () => {
-      setAssignError('')
-      setAssignSuccess('Organisers updated.')
+      toast.success('Organisers updated.')
       await queryClient.invalidateQueries({ queryKey: eventsKeys.detail(id) })
       await queryClient.invalidateQueries({ queryKey: eventsKeys.lists() })
     },
     onError: (err) => {
-      setAssignSuccess('')
-      setAssignError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to update organisers',
       )
     },
   })
 
   function toggleOrganizer(organizerId: string) {
-    setAssignSuccess('')
-    setAssignError('')
     setSelectedOrganizerIds((prev) =>
       prev.includes(organizerId)
         ? prev.filter((x) => x !== organizerId)
         : [...prev, organizerId],
     )
   }
+
+  useEffect(() => {
+    if (!regsError) return
+    toast.error(
+      regsErr instanceof Error
+        ? regsErr.message
+        : 'Failed to load registrations',
+    )
+  }, [regsError, regsErr])
 
   const registrations = regsData?.data ?? []
   const registeredCount = event?.registeredCount ?? registrations.length
@@ -299,16 +303,6 @@ export function EventDetailPage() {
               </div>
             )}
 
-            {assignError ? (
-              <p className="mt-3 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-                {assignError}
-              </p>
-            ) : null}
-            {assignSuccess ? (
-              <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-800">
-                {assignSuccess}
-              </p>
-            ) : null}
           </GlassPanel>
 
           <GlassPanel strong className="p-6">
@@ -332,12 +326,6 @@ export function EventDetailPage() {
 
             {regsPending ? (
               <PlayersTableSkeleton />
-            ) : regsError ? (
-              <p className="mt-6 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-                {regsErr instanceof Error
-                  ? regsErr.message
-                  : 'Failed to load registrations'}
-              </p>
             ) : registrations.length === 0 ? (
               <p className="mt-6 text-sm text-ink/55">
                 No players have registered for this event yet.

@@ -9,6 +9,7 @@ import {
   organizerEventsKeys,
   setRegistrationAttendance,
 } from '../../lib/queries/organizerEvents'
+import { displayName } from '../../lib/displayName'
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -131,7 +132,7 @@ export function OrganizerEventDetailPage() {
       if (filter === 'absent' && row.attendedAt) return false
       if (!q) return true
       const name =
-        `${row.user.firstName} ${row.user.lastName} ${row.user.username}`.toLowerCase()
+        `${displayName(row.user.firstName, row.user.lastName)} ${row.user.username}`.toLowerCase()
       return name.includes(q)
     })
   }, [regs, search, filter])
@@ -348,6 +349,10 @@ export function OrganizerEventDetailPage() {
                   const lockAttendance = isChess && matchmakingStarted
                   const canToggle =
                     windowOpen && !lockAttendance && !withdrawn
+                  const renderedName = displayName(
+                    row.user.firstName,
+                    row.user.lastName,
+                  )
 
                   return (
                     <button
@@ -397,7 +402,7 @@ export function OrganizerEventDetailPage() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold leading-tight text-ink">
-                            {row.user.firstName} {row.user.lastName}
+                            {renderedName}
                           </p>
                           <p className="mt-0.5 text-xs text-ink/45">
                             @{row.user.username}

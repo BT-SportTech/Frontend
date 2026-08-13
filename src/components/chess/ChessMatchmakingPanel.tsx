@@ -15,9 +15,10 @@ import {
 } from '../../lib/queries/chessMatchmaking'
 import { organizerEventsKeys } from '../../lib/queries/organizerEvents'
 import type { SportEvent } from '../../lib/types'
+import { displayName } from '../../lib/displayName'
 
 function playerName(p: ChessMatchRow['white']) {
-  return `${p.user.firstName} ${p.user.lastName}`
+  return displayName(p.user.firstName, p.user.lastName)
 }
 
 function initials(first: string, last: string) {
@@ -318,7 +319,7 @@ function PlayerProgressCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-ink">
-              {row.user.firstName} {row.user.lastName}
+              {playerName(row)}
             </p>
             {row.withdrawn ? (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700">
@@ -400,6 +401,34 @@ export function ChessMatchmakingPanel({
     ])
   }
 
+  function applyCompletedStatus(data: ChessMatchmakingStatus) {
+    queryClient.setQueryData(chessMatchmakingKeys.status(event.id), data)
+    queryClient.setQueryData(
+      organizerEventsKeys.detail(event.id),
+      (old: SportEvent | undefined) =>
+        old ? { ...old, matchmakingStatus: 'COMPLETED' } : old,
+    )
+  }
+
+  async function maybeAutoFinalizeTournament() {
+    const latest = await queryClient.fetchQuery({
+      queryKey: chessMatchmakingKeys.status(event.id),
+      queryFn: () => fetchChessMatchmakingStatus(event.id),
+    })
+    if (!latest || latest.matchmakingStatus === 'COMPLETED') return
+
+    const games = latest.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
+    const allDone = latest.playerProgress
+      .filter((p) => !p.withdrawn)
+      .every((p) => p.gamesCompleted >= games)
+    const batchReady =
+      !latest.activeBatch || latest.activeBatch.pendingMatches === 0
+
+    if (allDone && batchReady && !nextBatchMutation.isPending) {
+      nextBatchMutation.mutate()
+    }
+  }
+
   const startMutation = useMutation({
     mutationFn: () => {
       const boards = parseInt(boardOverride, 10)
@@ -418,8 +447,14 @@ export function ChessMatchmakingPanel({
 
   const nextBatchMutation = useMutation({
     mutationFn: () => nextChessBatch(event.id),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       setActionError('')
+      if (
+        'matchmakingStatus' in data &&
+        data.matchmakingStatus === 'COMPLETED'
+      ) {
+        applyCompletedStatus(data as ChessMatchmakingStatus)
+      }
       await invalidateAll()
     },
     onError: (err) => {
@@ -440,6 +475,7 @@ export function ChessMatchmakingPanel({
     onSuccess: async () => {
       setActionError('')
       await invalidateAll()
+      await maybeAutoFinalizeTournament()
     },
     onError: (err) => {
       setActionError(
@@ -472,28 +508,36 @@ export function ChessMatchmakingPanel({
     status?.currentGame ?? status?.currentRound ?? null
 
   const scheduledInActiveGame = useMemo(() => {
-    if (!currentGame) {
+    const activeBatchNumber = status?.activeBatch?.batchNumber ?? null
+    if (!currentGame || activeBatchNumber == null) {
       return matches.filter((m) => m.status === 'SCHEDULED')
     }
     return matches.filter((m) => {
       const game = m.gameNumber ?? m.roundNumber
-      return game === currentGame && m.status === 'SCHEDULED'
-    })
-  }, [matches, currentGame])
-
-  const completedInActiveBatch = useMemo(() => {
-    if (!status?.activeBatch || !currentGame) return []
-    const scheduledIds = new Set(scheduledInActiveGame.map((m) => m.id))
-    const completed = matches.filter((m) => {
-      const game = m.gameNumber ?? m.roundNumber
       return (
         game === currentGame &&
-        m.status === 'COMPLETED' &&
-        !scheduledIds.has(m.id)
+        m.batchNumber === activeBatchNumber &&
+        m.status === 'SCHEDULED'
       )
     })
-    return completed.slice(-status.activeBatch.boardCount)
-  }, [matches, status, scheduledInActiveGame, currentGame])
+  }, [matches, currentGame, status?.activeBatch?.batchNumber])
+
+  const completedInActiveBatch = useMemo(() => {
+    const activeBatchNumber = status?.activeBatch?.batchNumber ?? null
+    if (!status?.activeBatch || !currentGame || activeBatchNumber == null) {
+      return []
+    }
+    return matches
+      .filter((m) => {
+        const game = m.gameNumber ?? m.roundNumber
+        return (
+          game === currentGame &&
+          m.batchNumber === activeBatchNumber &&
+          m.status === 'COMPLETED'
+        )
+      })
+      .sort((a, b) => a.boardNumber - b.boardNumber)
+  }, [matches, status, currentGame])
 
   const boardMatches = useMemo(() => {
     if (scheduledInActiveGame.length > 0) return scheduledInActiveGame
@@ -565,6 +609,16 @@ export function ChessMatchmakingPanel({
 
   const readyCount = status?.playerProgress.filter((p) => !p.withdrawn).length
     ?? presentCount
+
+  const allPlayersFinished = useMemo(() => {
+    if (!status?.playerProgress.length) return false
+    return status.playerProgress
+      .filter((p) => !p.withdrawn)
+      .every((p) => p.gamesCompleted >= gamesPerPlayer)
+  }, [status, gamesPerPlayer])
+
+  const tournamentComplete =
+    mmStatus === 'COMPLETED' || allPlayersFinished
 
   return (
     <div className="space-y-5">
@@ -660,7 +714,7 @@ export function ChessMatchmakingPanel({
             </div>
           ) : null}
 
-          {canNextBatch ? (
+          {canNextBatch && !tournamentComplete ? (
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-ink">Board set complete</p>
@@ -706,11 +760,13 @@ export function ChessMatchmakingPanel({
                 {pendingCount > 0 ? 'Live boards' : 'Latest boards'}
               </h3>
               <p className="text-sm text-ink/50">
-                {pendingCount > 0
-                  ? 'Tap the winner’s name on each board'
-                  : canNextBatch
-                    ? 'All scored — tap Next board set when ready'
-                    : 'No active boards'}
+                {tournamentComplete
+                  ? 'Tournament complete — final standings below'
+                  : pendingCount > 0
+                    ? 'Tap the winner’s name on each board'
+                    : canNextBatch
+                      ? 'All scored — tap Next board set when ready'
+                      : 'No active boards'}
               </p>
             </div>
           </div>
@@ -721,10 +777,24 @@ export function ChessMatchmakingPanel({
               <Skeleton className="h-32 w-full rounded-2xl" />
             </div>
           ) : boardMatches.length === 0 ? (
-            <GlassPanel className="p-6 text-center text-sm text-ink/50">
-              {canNextBatch
-                ? 'Tap “Next board set” above to continue.'
-                : 'Waiting for the next board set…'}
+            <GlassPanel className="p-6 text-center text-sm">
+              {tournamentComplete ? (
+                <div className="space-y-2">
+                  <p className="font-semibold text-emerald-800">
+                    Tournament complete
+                  </p>
+                  <p className="text-ink/55">
+                    Every player has played {gamesPerPlayer} games. Results are
+                    saved — see final standings below.
+                  </p>
+                </div>
+              ) : canNextBatch ? (
+                <p className="text-ink/50">
+                  Tap “Next board set” above to continue.
+                </p>
+              ) : (
+                <p className="text-ink/50">Waiting for the next board set…</p>
+              )}
             </GlassPanel>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
