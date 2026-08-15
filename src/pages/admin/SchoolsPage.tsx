@@ -31,6 +31,7 @@ import {
   schoolsKeys,
 } from '../../lib/queries/schools'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+import { toast } from '../../stores/useToastStore'
 
 export function SchoolsPage() {
   const queryClient = useQueryClient()
@@ -38,7 +39,6 @@ export function SchoolsPage() {
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
-  const [actionError, setActionError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<SchoolFormState>(emptySchoolForm())
@@ -79,15 +79,17 @@ export function SchoolsPage() {
 
   const saveMutation = useMutation({
     mutationFn: saveSchool,
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       clearSchoolDraft()
       setShowDraftToast(false)
       setModalOpen(false)
-      setActionError('')
+      toast.success(
+        variables.editingId ? 'School updated.' : 'School created.',
+      )
       await invalidateSchoolQueries()
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Save failed')
+      toast.error(err instanceof Error ? err.message : 'Save failed')
     },
   })
 
@@ -95,14 +97,23 @@ export function SchoolsPage() {
     mutationFn: (id: string) => deactivateSchool(id),
     onSuccess: async () => {
       setDeactivateTarget(null)
-      setActionError('')
+      toast.success('School deactivated.')
       await invalidateSchoolQueries()
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Deactivate failed')
+      toast.error(err instanceof Error ? err.message : 'Deactivate failed')
       setDeactivateTarget(null)
     },
   })
+
+  useEffect(() => {
+    if (!isError) return
+    toast.error(
+      listError instanceof Error
+        ? listError.message
+        : 'Failed to load schools',
+    )
+  }, [isError, listError])
 
   useEffect(() => {
     const draft = readSchoolDraft()
@@ -148,7 +159,6 @@ export function SchoolsPage() {
     setForm(emptySchoolForm())
     setFormStep(0)
     setFormSessionKey(`new-${Date.now()}`)
-    setActionError('')
     setModalOpen(true)
     window.setTimeout(() => {
       skipDraftSaveRef.current = false
@@ -156,7 +166,6 @@ export function SchoolsPage() {
   }
 
   async function openEdit(id: string) {
-    setActionError('')
     try {
       const school = await queryClient.fetchQuery({
         queryKey: schoolsKeys.detail(id),
@@ -172,7 +181,9 @@ export function SchoolsPage() {
         skipDraftSaveRef.current = false
       }, 0)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to load school')
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to load school',
+      )
     }
   }
 
@@ -202,7 +213,7 @@ export function SchoolsPage() {
         skipDraftSaveRef.current = false
       }, 0)
     } catch {
-      setActionError('Unable to restore the saved draft')
+      toast.error('Unable to restore the saved draft')
     }
   }
 
@@ -213,13 +224,11 @@ export function SchoolsPage() {
 
   function onSave(e: FormEvent) {
     e.preventDefault()
-    setActionError('')
     saveMutation.mutate({ editingId, form })
   }
 
   function confirmDeactivate() {
     if (!deactivateTarget) return
-    setActionError('')
     deactivateMutation.mutate(deactivateTarget.id)
   }
 
@@ -229,14 +238,6 @@ export function SchoolsPage() {
   ) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
-
-  const errorMessage = actionError
-    ? actionError
-    : isError
-      ? listError instanceof Error
-        ? listError.message
-        : 'Failed to load schools'
-      : ''
 
   const saving = saveMutation.isPending
   const deactivating = deactivateMutation.isPending
@@ -254,12 +255,6 @@ export function SchoolsPage() {
         </div>
         <Button onClick={openCreate}>Add school</Button>
       </div>
-
-      {errorMessage ? (
-        <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-          {errorMessage}
-        </p>
-      ) : null}
 
       <GlassPanel strong className="overflow-hidden">
         <div className="min-h-[28rem] overflow-x-auto">
@@ -426,8 +421,11 @@ export function SchoolsPage() {
                             className="h-4 w-4"
                             aria-hidden
                           >
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="m4.9 4.9 14.2 14.2" />
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
                           </svg>
                         </Button>
                       </div>

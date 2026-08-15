@@ -13,7 +13,7 @@ export function LoginForm() {
           Sign in
         </h1>
         <p className="mt-1.5 text-sm text-ink/55">
-          Use your SportTech admin credentials
+          Use your Sportech admin credentials
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
@@ -24,7 +24,7 @@ export function LoginForm() {
             autoComplete="email"
             value={values.email}
             onChange={(event) => setField('email', event.target.value)}
-            placeholder="admin@sporttech.com"
+            placeholder="admin@Sportech.com"
             error={fieldErrors.email}
           />
 

@@ -12,7 +12,7 @@ export function LoginBrandSection() {
       <div className="absolute inset-0 bg-gradient-to-b from-primary/45 via-transparent to-transparent" />
       <div className="relative z-10 animate-fade-in">
         <p className="font-display text-5xl font-bold tracking-tight text-white drop-shadow-sm sm:text-6xl lg:text-7xl">
-          SportTech
+          Sportech
         </p>
         <p className="mt-3 max-w-sm text-lg font-medium text-accent">
           Admin console

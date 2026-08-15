@@ -1,3 +1,7 @@
+import { ApiError, parseApiErrorBody } from './apiErrors'
+
+export { ApiError, isApiError } from './apiErrors'
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
 export function getApiBaseUrl() {
@@ -11,8 +15,8 @@ export function resolveAssetUrl(url: string): string {
   return `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`
 }
 
-const ACCESS_KEY = 'sporttech_access_token'
-const REFRESH_KEY = 'sporttech_refresh_token'
+const ACCESS_KEY = 'Sportech_access_token'
+const REFRESH_KEY = 'Sportech_refresh_token'
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_KEY)
@@ -104,11 +108,14 @@ export async function api<T>(
   if (!res.ok) {
     let message = `Request failed (${res.status})`
     try {
-      const err = (await res.json()) as { message?: string | string[] }
-      if (Array.isArray(err.message)) message = err.message.join(', ')
-      else if (err.message) message = err.message
-    } catch {
-      /* ignore */
+      const err = (await res.json()) as {
+        message?: string | string[]
+        field?: string
+        code?: string
+      }
+      throw parseApiErrorBody(res.status, err)
+    } catch (e) {
+      if (e instanceof ApiError) throw e
     }
     throw new Error(message)
   }

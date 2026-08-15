@@ -8,6 +8,7 @@ import {
   Skeleton,
 } from '../../components/ui'
 import { resolveAssetUrl } from '../../lib/api'
+import { rankTierFromPoints } from '../../lib/rankTier'
 import {
   eventsKeys,
   fetchEvent,
@@ -19,6 +20,7 @@ import {
   organizersKeys,
 } from '../../lib/queries/organizers'
 import type { EventStatus } from '../../lib/types'
+import { toast } from '../../stores/useToastStore'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
   DRAFT: 'bg-ink/10 text-ink/70',
@@ -38,8 +40,6 @@ export function EventDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [selectedOrganizerIds, setSelectedOrganizerIds] = useState<string[]>([])
-  const [assignError, setAssignError] = useState('')
-  const [assignSuccess, setAssignSuccess] = useState('')
 
   const {
     data: event,
@@ -83,28 +83,33 @@ export function EventDetailPage() {
   const assignMutation = useMutation({
     mutationFn: () => updateEvent(id, { organizerIds: selectedOrganizerIds }),
     onSuccess: async () => {
-      setAssignError('')
-      setAssignSuccess('Organisers updated.')
+      toast.success('Organisers updated.')
       await queryClient.invalidateQueries({ queryKey: eventsKeys.detail(id) })
       await queryClient.invalidateQueries({ queryKey: eventsKeys.lists() })
     },
     onError: (err) => {
-      setAssignSuccess('')
-      setAssignError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to update organisers',
       )
     },
   })
 
   function toggleOrganizer(organizerId: string) {
-    setAssignSuccess('')
-    setAssignError('')
     setSelectedOrganizerIds((prev) =>
       prev.includes(organizerId)
         ? prev.filter((x) => x !== organizerId)
         : [...prev, organizerId],
     )
   }
+
+  useEffect(() => {
+    if (!regsError) return
+    toast.error(
+      regsErr instanceof Error
+        ? regsErr.message
+        : 'Failed to load registrations',
+    )
+  }, [regsError, regsErr])
 
   const registrations = regsData?.data ?? []
   const registeredCount = event?.registeredCount ?? registrations.length
@@ -299,16 +304,6 @@ export function EventDetailPage() {
               </div>
             )}
 
-            {assignError ? (
-              <p className="mt-3 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-                {assignError}
-              </p>
-            ) : null}
-            {assignSuccess ? (
-              <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-800">
-                {assignSuccess}
-              </p>
-            ) : null}
           </GlassPanel>
 
           <GlassPanel strong className="p-6">
@@ -332,12 +327,6 @@ export function EventDetailPage() {
 
             {regsPending ? (
               <PlayersTableSkeleton />
-            ) : regsError ? (
-              <p className="mt-6 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-                {regsErr instanceof Error
-                  ? regsErr.message
-                  : 'Failed to load registrations'}
-              </p>
             ) : registrations.length === 0 ? (
               <p className="mt-6 text-sm text-ink/55">
                 No players have registered for this event yet.
@@ -348,8 +337,9 @@ export function EventDetailPage() {
                   <thead className="border-b border-line bg-accent/40 text-ink/80">
                     <tr>
                       <th className="px-3 py-2.5 font-semibold">#</th>
-                      <th className="px-3 py-2.5 font-semibold">Player</th>
-                      <th className="px-3 py-2.5 font-semibold">Username</th>
+                      <th className="px-3 py-2.5 font-semibold">Player Name</th>
+                      <th className="px-3 py-2.5 font-semibold">Unique Code</th>
+                      <th className="px-3 py-2.5 font-semibold">Rank</th>
                       <th className="px-3 py-2.5 font-semibold">Email</th>
                       <th className="px-3 py-2.5 font-semibold">Attendance</th>
                       <th className="px-3 py-2.5 font-semibold">Registered</th>
@@ -360,6 +350,7 @@ export function EventDetailPage() {
                       const fullName =
                         `${row.user.firstName} ${row.user.lastName}`.trim() ||
                         row.user.username
+                      const rank = rankTierFromPoints(row.user.totalPoints ?? 0)
                       return (
                         <tr key={row.id} className="border-b border-line/50">
                           <td className="px-3 py-2.5 tabular-nums text-ink/50">
@@ -369,8 +360,9 @@ export function EventDetailPage() {
                             {fullName}
                           </td>
                           <td className="px-3 py-2.5 text-ink/80">
-                            @{row.user.username}
+                            {row.user.username}
                           </td>
+                          <td className="px-3 py-2.5 text-ink/80">{rank}</td>
                           <td className="px-3 py-2.5 text-ink/80">
                             {row.user.email ?? '—'}
                           </td>

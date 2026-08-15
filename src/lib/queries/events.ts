@@ -117,6 +117,7 @@ export type EventRegistrationRow = {
     lastName: string
     username: string
     email: string | null
+    totalPoints?: number
   }
 }
 

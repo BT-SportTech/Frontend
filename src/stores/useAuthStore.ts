@@ -3,7 +3,7 @@ import { api, clearTokens, getAccessToken, getRefreshToken, setTokens } from '..
 import type { AuthResponse, AuthUser, UserRole } from '../lib/types'
 import type { AuthStore } from '../interfaces'
 
-const USER_KEY = 'sporttech_user'
+const USER_KEY = 'Sportech_user'
 const WEB_ROLES: UserRole[] = ['ADMIN', 'ORGANIZER']
 
 function readStoredUser(): AuthUser | null {

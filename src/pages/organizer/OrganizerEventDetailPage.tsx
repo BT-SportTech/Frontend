@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChessMatchmakingPanel } from '../../components/chess/ChessMatchmakingPanel'
-import { GlassPanel, Skeleton, TextInput } from '../../components/ui'
+import { PlayerIdentity } from '../../components/PlayerIdentity'
+import { GlassPanel, Skeleton, TabBar, TextInput } from '../../components/ui'
 import {
   fetchOrganizerEvent,
   fetchOrganizerRegistrations,
   organizerEventsKeys,
   setRegistrationAttendance,
 } from '../../lib/queries/organizerEvents'
+import { displayName } from '../../lib/displayName'
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -48,6 +50,7 @@ function Spinner({ className = '' }: { className?: string }) {
 }
 
 type AttendanceFilter = 'all' | 'present' | 'absent'
+type MainTab = 'checkin' | 'matchmaking'
 
 export function OrganizerEventDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
@@ -55,7 +58,8 @@ export function OrganizerEventDetailPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<AttendanceFilter>('all')
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set())
-  const [showCheckIn, setShowCheckIn] = useState(true)
+  const [mainTab, setMainTab] = useState<MainTab>('checkin')
+  const [tabSeeded, setTabSeeded] = useState(false)
 
   const eventQuery = useQuery({
     queryKey: organizerEventsKeys.detail(id),
@@ -124,6 +128,12 @@ export function OrganizerEventDetailPage() {
   ).length
   const withdrawnCount = regs.filter((r) => r.withdrawnAt).length
 
+  useEffect(() => {
+    if (!event || tabSeeded) return
+    if (isChess && matchmakingStarted) setMainTab('matchmaking')
+    setTabSeeded(true)
+  }, [event, isChess, matchmakingStarted, tabSeeded])
+
   const filteredRegs = useMemo(() => {
     const q = search.trim().toLowerCase()
     return regs.filter((row) => {
@@ -131,7 +141,7 @@ export function OrganizerEventDetailPage() {
       if (filter === 'absent' && row.attendedAt) return false
       if (!q) return true
       const name =
-        `${row.user.firstName} ${row.user.lastName} ${row.user.username}`.toLowerCase()
+        `${displayName(row.user.firstName, row.user.lastName)} ${row.user.username}`.toLowerCase()
       return name.includes(q)
     })
   }, [regs, search, filter])
@@ -142,6 +152,30 @@ export function OrganizerEventDetailPage() {
       : event?.matchmakingStatus === 'COMPLETED'
         ? 3
         : 2
+
+  const mainTabs = useMemo(() => {
+    const rosterTotal = presentCount + absentCount
+    const tabs: { id: MainTab; label: string; badge?: string | number }[] = [
+      {
+        id: 'checkin',
+        label: 'Check-in',
+        badge: rosterTotal > 0 ? `${presentCount}/${rosterTotal}` : undefined,
+      },
+    ]
+    if (isChess) {
+      tabs.push({
+        id: 'matchmaking',
+        label: 'Matchmaking',
+        badge:
+          event?.matchmakingStatus === 'COMPLETED'
+            ? 'Done'
+            : event?.matchmakingStatus === 'IN_PROGRESS'
+              ? 'Live'
+              : undefined,
+      })
+    }
+    return tabs
+  }, [absentCount, event?.matchmakingStatus, isChess, presentCount])
 
   return (
     <div className="space-y-5">
@@ -242,14 +276,18 @@ export function OrganizerEventDetailPage() {
         </GlassPanel>
       )}
 
-      {/* Attendance */}
-      <GlassPanel className="overflow-hidden p-0">
-        <button
-          type="button"
-          onClick={() => setShowCheckIn((v) => !v)}
-          className="flex w-full items-start justify-between gap-3 px-5 py-4 text-left sm:px-6"
-        >
-          <div className="min-w-0 flex-1">
+      {isChess ? (
+        <TabBar
+          aria-label="Event sections"
+          tabs={mainTabs}
+          value={mainTab}
+          onChange={setMainTab}
+        />
+      ) : null}
+
+      {mainTab === 'checkin' || !isChess ? (
+        <GlassPanel className="overflow-hidden p-0">
+          <div className="px-5 py-4 sm:px-6">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-lg font-semibold text-ink">Check-in</h2>
               <div className="flex flex-wrap gap-2 text-xs font-bold">
@@ -273,184 +311,177 @@ export function OrganizerEventDetailPage() {
                 : ''}
             </p>
           </div>
-          <span className="shrink-0 pt-0.5 text-sm font-semibold text-primary">
-            {showCheckIn ? 'Hide' : 'Show'}
-          </span>
-        </button>
 
-        {showCheckIn ? (
-          <>
-            <div className="border-t border-line/60 px-5 pt-3 sm:px-6">
-              {!windowOpen ? (
-                <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-                  Check-in opens 30 minutes before start
-                  {opensAt ? ` (${formatWhen(opensAt)})` : ''}.
-                </p>
-              ) : null}
-
-              {regs.length > 4 ? (
-                <div className="mb-3 flex flex-wrap gap-2">
-                  <TextInput
-                    placeholder="Search players…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="max-w-xs"
-                  />
-                  <div className="flex rounded-lg border border-line bg-white p-0.5">
-                    {(
-                      [
-                        ['all', 'All players'],
-                        ['present', 'Present'],
-                        ['absent', 'Not checked in'],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setFilter(key)}
-                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                          filter === key
-                            ? 'bg-primary text-white'
-                            : 'text-ink/55 hover:text-ink'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {regsQuery.isPending ? (
-              <div className="space-y-2 p-5">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : regsQuery.isError ? (
-              <p className="p-5 text-sm text-red-700">
-                {regsQuery.error instanceof Error
-                  ? regsQuery.error.message
-                  : 'Failed to load roster'}
+          <div className="border-t border-line/60 px-5 pt-3 sm:px-6">
+            {!windowOpen ? (
+              <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                Check-in opens 30 minutes before start
+                {opensAt ? ` (${formatWhen(opensAt)})` : ''}.
               </p>
-            ) : regs.length === 0 ? (
-              <p className="p-6 text-sm text-ink/50">No players registered yet.</p>
-            ) : filteredRegs.length === 0 ? (
-              <p className="p-6 text-sm text-ink/50">
-                No players match your filter.
-              </p>
-            ) : (
-              <div className="grid gap-3 p-5 pt-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:px-6">
-                {filteredRegs.map((row) => {
-                  const present = Boolean(row.attendedAt)
-                  const withdrawn = Boolean(row.withdrawnAt)
-                  const busy = pendingIds.has(row.id)
-                  const lockAttendance = isChess && matchmakingStarted
-                  const canToggle =
-                    windowOpen && !lockAttendance && !withdrawn
+            ) : null}
 
-                  return (
+            {regs.length > 4 ? (
+              <div className="mb-3 flex flex-wrap gap-2">
+                <TextInput
+                  placeholder="Search players…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="max-w-xs"
+                />
+                <div className="flex rounded-lg border border-line bg-white p-0.5">
+                  {(
+                    [
+                      ['all', 'All players'],
+                      ['present', 'Present'],
+                      ['absent', 'Not checked in'],
+                    ] as const
+                  ).map(([key, label]) => (
                     <button
-                      key={row.id}
+                      key={key}
                       type="button"
-                      disabled={!canToggle || busy}
-                      onClick={() => {
-                        if (busy) return
-                        attendanceMutation.mutate({
-                          registrationId: row.id,
-                          attended: !present,
-                        })
-                      }}
-                      className={`flex flex-col rounded-2xl border p-4 text-left transition ${
-                        canToggle && !busy
-                          ? 'hover:border-primary/30 hover:bg-primary/[0.03] active:scale-[0.99]'
-                          : 'cursor-default'
-                      } ${
-                        busy
-                          ? 'border-primary/20 bg-primary/[0.04]'
-                          : present && !withdrawn
-                            ? 'border-emerald-200 bg-emerald-50/50'
-                            : withdrawn
-                              ? 'border-red-200/60 bg-red-50/30'
-                              : 'border-line/60 bg-white/80'
+                      onClick={() => setFilter(key)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                        filter === key
+                          ? 'bg-primary text-white'
+                          : 'text-ink/55 hover:text-ink'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                            busy
-                              ? 'bg-primary/15 text-primary'
-                              : withdrawn
-                                ? 'bg-red-100 text-red-700'
-                                : present
-                                  ? 'bg-emerald-500 text-white'
-                                  : 'bg-ink/8 text-ink/45'
-                          }`}
-                        >
-                          {busy ? (
-                            <Spinner className="h-5 w-5" />
-                          ) : present && !withdrawn ? (
-                            '✓'
-                          ) : (
-                            initials(row.user.firstName, row.user.lastName)
-                          )}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold leading-tight text-ink">
-                            {row.user.firstName} {row.user.lastName}
-                          </p>
-                          <p className="mt-0.5 text-xs text-ink/45">
-                            @{row.user.username}
-                          </p>
-                          {typeof row.chessRating === 'number' ? (
-                            <p className="mt-1 text-xs font-semibold text-ink/55">
-                              Rating {row.chessRating}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {regsQuery.isPending ? (
+            <div className="space-y-2 p-5">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : regsQuery.isError ? (
+            <p className="p-5 text-sm text-red-700">
+              {regsQuery.error instanceof Error
+                ? regsQuery.error.message
+                : 'Failed to load roster'}
+            </p>
+          ) : regs.length === 0 ? (
+            <p className="p-6 text-sm text-ink/50">No players registered yet.</p>
+          ) : filteredRegs.length === 0 ? (
+            <p className="p-6 text-sm text-ink/50">
+              No players match your filter.
+            </p>
+          ) : (
+            <div className="grid gap-3 p-5 pt-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:px-6">
+              {filteredRegs.map((row) => {
+                const present = Boolean(row.attendedAt)
+                const withdrawn = Boolean(row.withdrawnAt)
+                const busy = pendingIds.has(row.id)
+                const lockAttendance = isChess && matchmakingStarted
+                const canToggle =
+                  windowOpen && !lockAttendance && !withdrawn
+
+                return (
+                  <button
+                    key={row.id}
+                    type="button"
+                    disabled={!canToggle || busy}
+                    onClick={() => {
+                      if (busy) return
+                      attendanceMutation.mutate({
+                        registrationId: row.id,
+                        attended: !present,
+                      })
+                    }}
+                    className={`flex flex-col rounded-2xl border p-4 text-left transition ${
+                      canToggle && !busy
+                        ? 'hover:border-primary/30 hover:bg-primary/[0.03] active:scale-[0.99]'
+                        : 'cursor-default'
+                    } ${
+                      busy
+                        ? 'border-primary/20 bg-primary/[0.04]'
+                        : present && !withdrawn
+                          ? 'border-emerald-200 bg-emerald-50/50'
+                          : withdrawn
+                            ? 'border-red-200/60 bg-red-50/30'
+                            : 'border-line/60 bg-white/80'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
                       <span
-                        className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold ${
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
                           busy
-                            ? 'bg-primary/10 text-primary'
+                            ? 'bg-primary/15 text-primary'
                             : withdrawn
                               ? 'bg-red-100 text-red-700'
                               : present
-                                ? 'bg-emerald-100 text-emerald-800'
+                                ? 'bg-emerald-500 text-white'
                                 : 'bg-ink/8 text-ink/45'
                         }`}
                       >
                         {busy ? (
-                          <>
-                            <Spinner className="h-3.5 w-3.5" />
-                            {present ? 'Updating…' : 'Checking in…'}
-                          </>
-                        ) : withdrawn ? (
-                          'Withdrawn'
-                        ) : present ? (
-                          'Present'
+                          <Spinner className="h-5 w-5" />
+                        ) : present && !withdrawn ? (
+                          '✓'
                         ) : (
-                          'Tap to check in'
+                          initials(row.user.firstName, row.user.lastName)
                         )}
                       </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+                      <div className="min-w-0 flex-1">
+                        <PlayerIdentity
+                          username={row.user.username}
+                          firstName={row.user.firstName}
+                          lastName={row.user.lastName}
+                          totalPoints={row.user.totalPoints}
+                        />
+                        {typeof row.chessRating === 'number' ? (
+                          <p className="mt-1 text-xs font-semibold text-ink/55">
+                            Rating {row.chessRating}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span
+                      className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold ${
+                        busy
+                          ? 'bg-primary/10 text-primary'
+                          : withdrawn
+                            ? 'bg-red-100 text-red-700'
+                            : present
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-ink/8 text-ink/45'
+                      }`}
+                    >
+                      {busy ? (
+                        <>
+                          <Spinner className="h-3.5 w-3.5" />
+                          {present ? 'Updating…' : 'Checking in…'}
+                        </>
+                      ) : withdrawn ? (
+                        'Withdrawn'
+                      ) : present ? (
+                        'Present'
+                      ) : (
+                        'Tap to check in'
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
-            {attendanceMutation.isError ? (
-              <p className="border-t border-red-100 bg-red-50/80 px-5 py-3 text-sm text-red-700">
-                {attendanceMutation.error instanceof Error
-                  ? attendanceMutation.error.message
-                  : 'Could not update attendance'}
-              </p>
-            ) : null}
-          </>
-        ) : null}
-      </GlassPanel>
+          {attendanceMutation.isError ? (
+            <p className="border-t border-red-100 bg-red-50/80 px-5 py-3 text-sm text-red-700">
+              {attendanceMutation.error instanceof Error
+                ? attendanceMutation.error.message
+                : 'Could not update attendance'}
+            </p>
+          ) : null}
+        </GlassPanel>
+      ) : null}
 
-      {event && isChess ? (
+      {event && isChess && mainTab === 'matchmaking' ? (
         <ChessMatchmakingPanel event={event} presentCount={presentCount} />
       ) : null}
     </div>

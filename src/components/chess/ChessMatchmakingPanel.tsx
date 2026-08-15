@@ -1,6 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, FieldLabel, GlassPanel, Skeleton, TextInput } from '../ui'
+import {
+  Button,
+  FieldLabel,
+  GlassPanel,
+  Skeleton,
+  TabBar,
+  TextInput,
+} from '../ui'
 import {
   chessMatchmakingKeys,
   fetchChessMatches,
@@ -13,11 +20,13 @@ import {
   type ChessMatchRow,
   type ChessMatchmakingStatus,
 } from '../../lib/queries/chessMatchmaking'
+import { PlayerIdentity } from '../PlayerIdentity'
 import { organizerEventsKeys } from '../../lib/queries/organizerEvents'
 import type { SportEvent } from '../../lib/types'
+import { displayName } from '../../lib/displayName'
 
 function playerName(p: ChessMatchRow['white']) {
-  return `${p.user.firstName} ${p.user.lastName}`
+  return displayName(p.user.firstName, p.user.lastName)
 }
 
 function initials(first: string, last: string) {
@@ -215,10 +224,53 @@ function BoardCard({
   )
 }
 
+function matchScoreLabel(result: ChessMatchResult | null) {
+  if (result === 'WHITE_WIN') return '1–0'
+  if (result === 'BLACK_WIN') return '0–1'
+  if (result === 'DRAW') return '½–½'
+  return null
+}
+
+function formatRatingDelta(delta: number) {
+  if (delta > 0) return `+${delta}`
+  return String(delta)
+}
+
+function PlayerRatingLine({
+  ratingAfter,
+  ratingDelta,
+}: {
+  ratingAfter: number | null | undefined
+  ratingDelta: number | null | undefined
+}) {
+  if (ratingAfter == null) return null
+
+  return (
+    <p className="mt-0.5 text-xs font-semibold tabular-nums text-ink/55">
+      {ratingAfter} pts
+      {ratingDelta != null ? (
+        <span
+          className={
+            ratingDelta > 0
+              ? 'text-emerald-700'
+              : ratingDelta < 0
+                ? 'text-red-600'
+                : 'text-ink/45'
+          }
+        >
+          {' '}
+          ({formatRatingDelta(ratingDelta)})
+        </span>
+      ) : null}
+    </p>
+  )
+}
+
 function CompletedMatchCard({ match }: { match: ChessMatchRow }) {
   const whiteWon = match.result === 'WHITE_WIN'
   const blackWon = match.result === 'BLACK_WIN'
   const isDraw = match.result === 'DRAW'
+  const scoreLabel = matchScoreLabel(match.result)
 
   return (
     <div className="rounded-xl border border-line/60 bg-white/80 p-3">
@@ -233,7 +285,8 @@ function CompletedMatchCard({ match }: { match: ChessMatchRow }) {
               : 'bg-emerald-100 text-emerald-800'
           }`}
         >
-          {isDraw ? 'Draw' : whiteWon ? 'White won' : 'Black won'}
+          {scoreLabel ??
+            (isDraw ? 'Draw' : whiteWon ? 'White won' : 'Black won')}
         </span>
       </div>
       <div className="space-y-2">
@@ -252,10 +305,11 @@ function CompletedMatchCard({ match }: { match: ChessMatchRow }) {
             <p className="truncate text-sm font-semibold text-ink">
               {playerName(match.white)}
             </p>
+            <PlayerRatingLine
+              ratingAfter={match.white.ratingAfter}
+              ratingDelta={match.white.ratingDelta}
+            />
           </div>
-          {whiteWon ? (
-            <span className="text-xs font-bold text-emerald-700">W</span>
-          ) : null}
         </div>
         <div
           className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${
@@ -272,10 +326,11 @@ function CompletedMatchCard({ match }: { match: ChessMatchRow }) {
             <p className="truncate text-sm font-semibold text-ink">
               {playerName(match.black)}
             </p>
+            <PlayerRatingLine
+              ratingAfter={match.black.ratingAfter}
+              ratingDelta={match.black.ratingDelta}
+            />
           </div>
-          {blackWon ? (
-            <span className="text-xs font-bold text-emerald-700">W</span>
-          ) : null}
         </div>
       </div>
     </div>
@@ -297,6 +352,8 @@ function PlayerProgressCard({
   busy: boolean
   onWithdraw: () => void
 }) {
+  const ratingDelta = row.rating - 1000
+
   return (
     <div
       className={`rounded-2xl border p-4 transition ${
@@ -317,15 +374,33 @@ function PlayerProgressCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold text-ink">
-              {row.user.firstName} {row.user.lastName}
-            </p>
+            <PlayerIdentity
+              username={row.user.username}
+              firstName={row.user.firstName}
+              lastName={row.user.lastName}
+              totalPoints={row.user.totalPoints}
+            />
             {row.withdrawn ? (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700">
                 Left
               </span>
             ) : null}
           </div>
+          <p className="mt-1 text-sm font-bold tabular-nums text-ink">
+            Chess rating {row.rating}
+            {ratingDelta !== 0 ? (
+              <span
+                className={
+                  ratingDelta > 0
+                    ? 'text-emerald-700'
+                    : 'text-red-600'
+                }
+              >
+                {' '}
+                ({formatRatingDelta(ratingDelta)})
+              </span>
+            ) : null}
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <GameDots completed={row.gamesCompleted} total={gamesPerPlayer} />
             <div className="flex gap-1.5 text-[11px] font-semibold">
@@ -370,8 +445,10 @@ export function ChessMatchmakingPanel({
     String(event.boardCount ?? 10),
   )
   const [actionError, setActionError] = useState('')
-  const [showRoster, setShowRoster] = useState(true)
-  const [showHistory, setShowHistory] = useState(true)
+  const [subTab, setSubTab] = useState<'boards' | 'results' | 'standings'>(
+    'boards',
+  )
+  const [subTabSeeded, setSubTabSeeded] = useState(false)
 
   const statusQuery = useQuery({
     queryKey: chessMatchmakingKeys.status(event.id),
@@ -400,6 +477,34 @@ export function ChessMatchmakingPanel({
     ])
   }
 
+  function applyCompletedStatus(data: ChessMatchmakingStatus) {
+    queryClient.setQueryData(chessMatchmakingKeys.status(event.id), data)
+    queryClient.setQueryData(
+      organizerEventsKeys.detail(event.id),
+      (old: SportEvent | undefined) =>
+        old ? { ...old, matchmakingStatus: 'COMPLETED' } : old,
+    )
+  }
+
+  async function maybeAutoFinalizeTournament() {
+    const latest = await queryClient.fetchQuery({
+      queryKey: chessMatchmakingKeys.status(event.id),
+      queryFn: () => fetchChessMatchmakingStatus(event.id),
+    })
+    if (!latest || latest.matchmakingStatus === 'COMPLETED') return
+
+    const games = latest.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
+    const allDone = latest.playerProgress
+      .filter((p) => !p.withdrawn)
+      .every((p) => p.gamesCompleted >= games)
+    const batchReady =
+      !latest.activeBatch || latest.activeBatch.pendingMatches === 0
+
+    if (allDone && batchReady && !nextBatchMutation.isPending) {
+      nextBatchMutation.mutate()
+    }
+  }
+
   const startMutation = useMutation({
     mutationFn: () => {
       const boards = parseInt(boardOverride, 10)
@@ -418,8 +523,14 @@ export function ChessMatchmakingPanel({
 
   const nextBatchMutation = useMutation({
     mutationFn: () => nextChessBatch(event.id),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       setActionError('')
+      if (
+        'matchmakingStatus' in data &&
+        data.matchmakingStatus === 'COMPLETED'
+      ) {
+        applyCompletedStatus(data as ChessMatchmakingStatus)
+      }
       await invalidateAll()
     },
     onError: (err) => {
@@ -440,6 +551,7 @@ export function ChessMatchmakingPanel({
     onSuccess: async () => {
       setActionError('')
       await invalidateAll()
+      await maybeAutoFinalizeTournament()
     },
     onError: (err) => {
       setActionError(
@@ -472,28 +584,36 @@ export function ChessMatchmakingPanel({
     status?.currentGame ?? status?.currentRound ?? null
 
   const scheduledInActiveGame = useMemo(() => {
-    if (!currentGame) {
+    const activeBatchNumber = status?.activeBatch?.batchNumber ?? null
+    if (!currentGame || activeBatchNumber == null) {
       return matches.filter((m) => m.status === 'SCHEDULED')
     }
     return matches.filter((m) => {
       const game = m.gameNumber ?? m.roundNumber
-      return game === currentGame && m.status === 'SCHEDULED'
-    })
-  }, [matches, currentGame])
-
-  const completedInActiveBatch = useMemo(() => {
-    if (!status?.activeBatch || !currentGame) return []
-    const scheduledIds = new Set(scheduledInActiveGame.map((m) => m.id))
-    const completed = matches.filter((m) => {
-      const game = m.gameNumber ?? m.roundNumber
       return (
         game === currentGame &&
-        m.status === 'COMPLETED' &&
-        !scheduledIds.has(m.id)
+        m.batchNumber === activeBatchNumber &&
+        m.status === 'SCHEDULED'
       )
     })
-    return completed.slice(-status.activeBatch.boardCount)
-  }, [matches, status, scheduledInActiveGame, currentGame])
+  }, [matches, currentGame, status?.activeBatch?.batchNumber])
+
+  const completedInActiveBatch = useMemo(() => {
+    const activeBatchNumber = status?.activeBatch?.batchNumber ?? null
+    if (!status?.activeBatch || !currentGame || activeBatchNumber == null) {
+      return []
+    }
+    return matches
+      .filter((m) => {
+        const game = m.gameNumber ?? m.roundNumber
+        return (
+          game === currentGame &&
+          m.batchNumber === activeBatchNumber &&
+          m.status === 'COMPLETED'
+        )
+      })
+      .sort((a, b) => a.boardNumber - b.boardNumber)
+  }, [matches, status, currentGame])
 
   const boardMatches = useMemo(() => {
     if (scheduledInActiveGame.length > 0) return scheduledInActiveGame
@@ -546,6 +666,7 @@ export function ChessMatchmakingPanel({
     if (!status) return []
     return [...status.playerProgress].sort((a, b) => {
       if (a.withdrawn !== b.withdrawn) return a.withdrawn ? 1 : -1
+      if (b.rating !== a.rating) return b.rating - a.rating
       const scoreA = a.eventWins * 2 + a.eventDraws
       const scoreB = b.eventWins * 2 + b.eventDraws
       return scoreB - scoreA
@@ -566,9 +687,35 @@ export function ChessMatchmakingPanel({
   const readyCount = status?.playerProgress.filter((p) => !p.withdrawn).length
     ?? presentCount
 
+  const allPlayersFinished = useMemo(() => {
+    if (!status?.playerProgress.length) return false
+    return status.playerProgress
+      .filter((p) => !p.withdrawn)
+      .every((p) => p.gamesCompleted >= gamesPerPlayer)
+  }, [status, gamesPerPlayer])
+
+  const tournamentComplete =
+    mmStatus === 'COMPLETED' || allPlayersFinished
+
+  useEffect(() => {
+    if (!status || subTabSeeded) return
+    if (mmStatus === 'COMPLETED' || tournamentComplete) {
+      setSubTab('standings')
+    } else {
+      setSubTab('boards')
+    }
+    setSubTabSeeded(true)
+  }, [status, mmStatus, tournamentComplete, subTabSeeded])
+
+  const showWorkspaceTabs = mmStatus !== 'NOT_STARTED'
+  const pastCount = pastMatchGroups.reduce(
+    (sum, group) => sum + group.matches.length,
+    0,
+  )
+  const activeStandings = sortedProgress.filter((p) => !p.withdrawn).length
+
   return (
     <div className="space-y-5">
-      {/* Status header */}
       <GlassPanel className="overflow-hidden p-0">
         <div className="px-5 py-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -624,7 +771,7 @@ export function ChessMatchmakingPanel({
               </div>
               <p className="mt-3 text-sm text-ink/50">
                 {presentCount < 2
-                  ? 'Mark at least 2 players present above, then start.'
+                  ? 'Mark at least 2 players present on the Check-in tab, then start.'
                   : `${presentCount} players will be paired. With ${boardOverride || '—'} boards, you may need several board sets before everyone finishes game 1.`}
               </p>
             </div>
@@ -654,13 +801,13 @@ export function ChessMatchmakingPanel({
               {pendingCount > 0 ? (
                 <p className="mt-2 text-sm text-ink/55">
                   Score the {pendingCount} remaining board
-                  {pendingCount === 1 ? '' : 's'} below.
+                  {pendingCount === 1 ? '' : 's'} in Boards.
                 </p>
               ) : null}
             </div>
           ) : null}
 
-          {canNextBatch ? (
+          {canNextBatch && !tournamentComplete ? (
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-ink">Board set complete</p>
@@ -697,146 +844,184 @@ export function ChessMatchmakingPanel({
         </div>
       </GlassPanel>
 
-      {/* Live boards */}
-      {mmStatus !== 'NOT_STARTED' ? (
-        <div>
-          <div className="mb-3 flex items-end justify-between gap-2">
-            <div>
-              <h3 className="text-base font-semibold text-ink">
-                {pendingCount > 0 ? 'Live boards' : 'Latest boards'}
-              </h3>
-              <p className="text-sm text-ink/50">
-                {pendingCount > 0
-                  ? 'Tap the winner’s name on each board'
-                  : canNextBatch
-                    ? 'All scored — tap Next board set when ready'
-                    : 'No active boards'}
-              </p>
-            </div>
-          </div>
+      {showWorkspaceTabs ? (
+        <>
+          <TabBar
+            aria-label="Matchmaking sections"
+            size="sm"
+            tabs={[
+              {
+                id: 'boards',
+                label: pendingCount > 0 ? 'Live boards' : 'Boards',
+                badge: pendingCount > 0 ? pendingCount : undefined,
+              },
+              {
+                id: 'results',
+                label: 'Past results',
+                badge: pastCount > 0 ? pastCount : undefined,
+                disabled: pastMatchGroups.length === 0,
+              },
+              {
+                id: 'standings',
+                label: 'Standings',
+                badge:
+                  status && status.playerProgress.length > 0
+                    ? activeStandings
+                    : undefined,
+                disabled: !status || status.playerProgress.length === 0,
+              },
+            ]}
+            value={subTab}
+            onChange={setSubTab}
+          />
 
-          {matchesQuery.isPending ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Skeleton className="h-32 w-full rounded-2xl" />
-              <Skeleton className="h-32 w-full rounded-2xl" />
-            </div>
-          ) : boardMatches.length === 0 ? (
-            <GlassPanel className="p-6 text-center text-sm text-ink/50">
-              {canNextBatch
-                ? 'Tap “Next board set” above to continue.'
-                : 'Waiting for the next board set…'}
-            </GlassPanel>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {boardMatches.map((match) => (
-                <BoardCard
-                  key={match.id}
-                  match={match}
-                  busy={busy}
-                  saving={
-                    resultMutation.isPending &&
-                    resultMutation.variables?.matchId === match.id
-                  }
-                  onResult={(result) =>
-                    resultMutation.mutate({ matchId: match.id, result })
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {/* Past results */}
-      {mmStatus !== 'NOT_STARTED' && pastMatchGroups.length > 0 ? (
-        <GlassPanel className="overflow-hidden p-0">
-          <button
-            type="button"
-            onClick={() => setShowHistory((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left sm:px-6"
-          >
+          {subTab === 'boards' ? (
             <div>
-              <h3 className="text-base font-semibold text-ink">Past results</h3>
-              <p className="mt-0.5 text-sm text-ink/50">
-                {pastMatchGroups.length} board set
-                {pastMatchGroups.length === 1 ? '' : 's'} completed · winners
-                and draws
-              </p>
-            </div>
-            <span className="text-sm font-semibold text-primary">
-              {showHistory ? 'Hide' : 'Show'}
-            </span>
-          </button>
-          {showHistory ? (
-            <div className="space-y-5 border-t border-line/60 px-5 py-4 sm:px-6">
-              {pastMatchGroups.map((group) => (
-                <div key={`${group.gameNumber}-${group.batchNumber}`}>
-                  <h4 className="mb-3 text-sm font-bold text-ink/70">
-                    Game {group.gameNumber}
-                    {group.batchNumber > 0
-                      ? ` · Board set ${group.batchNumber}`
-                      : ''}
-                  </h4>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {group.matches.map((match) => (
-                      <CompletedMatchCard key={match.id} match={match} />
-                    ))}
-                  </div>
+              <div className="mb-3">
+                <h3 className="text-base font-semibold text-ink">
+                  {pendingCount > 0 ? 'Live boards' : 'Latest boards'}
+                </h3>
+                <p className="text-sm text-ink/50">
+                  {tournamentComplete
+                    ? 'Tournament complete — see Standings for final rankings'
+                    : pendingCount > 0
+                      ? 'Tap the winner’s name on each board'
+                      : canNextBatch
+                        ? 'All scored — tap Next board set when ready'
+                        : 'No active boards'}
+                </p>
+              </div>
+
+              {matchesQuery.isPending ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Skeleton className="h-32 w-full rounded-2xl" />
+                  <Skeleton className="h-32 w-full rounded-2xl" />
                 </div>
-              ))}
+              ) : boardMatches.length === 0 ? (
+                <GlassPanel className="p-6 text-center text-sm">
+                  {tournamentComplete ? (
+                    <div className="space-y-2">
+                      <p className="font-semibold text-emerald-800">
+                        Tournament complete
+                      </p>
+                      <p className="text-ink/55">
+                        Every player has played {gamesPerPlayer} games. Results
+                        are saved — open Standings for the final table.
+                      </p>
+                    </div>
+                  ) : canNextBatch ? (
+                    <p className="text-ink/50">
+                      Tap “Next board set” above to continue.
+                    </p>
+                  ) : (
+                    <p className="text-ink/50">
+                      Waiting for the next board set…
+                    </p>
+                  )}
+                </GlassPanel>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {boardMatches.map((match) => (
+                    <BoardCard
+                      key={match.id}
+                      match={match}
+                      busy={busy}
+                      saving={
+                        resultMutation.isPending &&
+                        resultMutation.variables?.matchId === match.id
+                      }
+                      onResult={(result) =>
+                        resultMutation.mutate({ matchId: match.id, result })
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
-        </GlassPanel>
-      ) : null}
 
-      {/* Standings / roster */}
-      {status && status.playerProgress.length > 0 ? (
-        <GlassPanel className="overflow-hidden p-0">
-          <button
-            type="button"
-            onClick={() => setShowRoster((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left sm:px-6"
-          >
-            <div>
-              <h3 className="text-base font-semibold text-ink">Standings</h3>
-              <p className="mt-0.5 text-sm text-ink/50">
-                {sortedProgress.filter((p) => !p.withdrawn).length} active
-                {sortedProgress.some((p) => p.withdrawn)
-                  ? ` · ${sortedProgress.filter((p) => p.withdrawn).length} left`
-                  : ''}
-              </p>
-            </div>
-            <span className="text-sm font-semibold text-primary">
-              {showRoster ? 'Hide' : 'Show'}
-            </span>
-          </button>
-          {showRoster ? (
-            <div className="grid gap-3 border-t border-line/60 p-5 sm:grid-cols-2 lg:grid-cols-3 sm:px-6">
-              {sortedProgress.map((row) => (
-                <PlayerProgressCard
-                  key={row.registrationId}
-                  row={row}
-                  gamesPerPlayer={gamesPerPlayer}
-                  canWithdraw={!row.withdrawn && mmStatus !== 'COMPLETED'}
-                  withdrawing={
-                    withdrawMutation.isPending &&
-                    withdrawMutation.variables === row.registrationId
-                  }
-                  busy={busy}
-                  onWithdraw={() => {
-                    if (
-                      window.confirm(
-                        `Remove ${row.user.firstName} ${row.user.lastName} from the tournament? Their open match will be cancelled.`,
-                      )
-                    ) {
-                      withdrawMutation.mutate(row.registrationId)
-                    }
-                  }}
-                />
-              ))}
-            </div>
+          {subTab === 'results' ? (
+            pastMatchGroups.length === 0 ? (
+              <GlassPanel className="p-6 text-center text-sm text-ink/50">
+                No completed board sets yet.
+              </GlassPanel>
+            ) : (
+              <GlassPanel className="overflow-hidden p-0">
+                <div className="px-5 py-4 sm:px-6">
+                  <h3 className="text-base font-semibold text-ink">
+                    Past results
+                  </h3>
+                  <p className="mt-0.5 text-sm text-ink/50">
+                    {pastMatchGroups.length} board set
+                    {pastMatchGroups.length === 1 ? '' : 's'} completed · winners
+                    and draws
+                  </p>
+                </div>
+                <div className="space-y-5 border-t border-line/60 px-5 py-4 sm:px-6">
+                  {pastMatchGroups.map((group) => (
+                    <div key={`${group.gameNumber}-${group.batchNumber}`}>
+                      <h4 className="mb-3 text-sm font-bold text-ink/70">
+                        Game {group.gameNumber}
+                        {group.batchNumber > 0
+                          ? ` · Board set ${group.batchNumber}`
+                          : ''}
+                      </h4>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {group.matches.map((match) => (
+                          <CompletedMatchCard key={match.id} match={match} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </GlassPanel>
+            )
           ) : null}
-        </GlassPanel>
+
+          {subTab === 'standings' ? (
+            !status || status.playerProgress.length === 0 ? (
+              <GlassPanel className="p-6 text-center text-sm text-ink/50">
+                Standings appear once pairing starts.
+              </GlassPanel>
+            ) : (
+              <GlassPanel className="overflow-hidden p-0">
+                <div className="px-5 py-4 sm:px-6">
+                  <h3 className="text-base font-semibold text-ink">Standings</h3>
+                  <p className="mt-0.5 text-sm text-ink/50">
+                    {activeStandings} active
+                    {sortedProgress.some((p) => p.withdrawn)
+                      ? ` · ${sortedProgress.filter((p) => p.withdrawn).length} left`
+                      : ''}
+                  </p>
+                </div>
+                <div className="grid gap-3 border-t border-line/60 p-5 sm:grid-cols-2 lg:grid-cols-3 sm:px-6">
+                  {sortedProgress.map((row) => (
+                    <PlayerProgressCard
+                      key={row.registrationId}
+                      row={row}
+                      gamesPerPlayer={gamesPerPlayer}
+                      canWithdraw={!row.withdrawn && mmStatus !== 'COMPLETED'}
+                      withdrawing={
+                        withdrawMutation.isPending &&
+                        withdrawMutation.variables === row.registrationId
+                      }
+                      busy={busy}
+                      onWithdraw={() => {
+                        if (
+                          window.confirm(
+                            `Remove ${row.user.firstName} ${row.user.lastName} from the tournament? Their open match will be cancelled.`,
+                          )
+                        ) {
+                          withdrawMutation.mutate(row.registrationId)
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              </GlassPanel>
+            )
+          ) : null}
+        </>
       ) : null}
     </div>
   )

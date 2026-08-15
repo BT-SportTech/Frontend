@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { resolveAssetUrl } from '../../lib/api'
@@ -7,6 +8,7 @@ import {
   fetchDashboardStats,
 } from '../../lib/queries/dashboard'
 import { GlassPanel } from '../../components/ui'
+import { toast } from '../../stores/useToastStore'
 
 export function DashboardPage() {
   const { data: stats, isPending, isError, error } = useQuery({
@@ -19,6 +21,13 @@ export function DashboardPage() {
     (stats?.schoolsActive ?? 0) + (stats?.schoolsInactive ?? 0)
   const maxTypeCount = Math.max(1, ...Object.values(stats?.byType ?? {}))
 
+  useEffect(() => {
+    if (!isError) return
+    toast.error(
+      error instanceof Error ? error.message : 'Failed to load analytics',
+    )
+  }, [isError, error])
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,12 +38,6 @@ export function DashboardPage() {
           Platform analytics for schools and players.
         </p>
       </div>
-
-      {isError ? (
-        <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
-          {error instanceof Error ? error.message : 'Failed to load analytics'}
-        </p>
-      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

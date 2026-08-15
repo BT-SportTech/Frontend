@@ -1,8 +1,9 @@
-export type AdminSearchTab = 'schools' | 'events'
+export type AdminSearchTab = 'schools' | 'events' | 'players'
 
 export interface AdminSearchStoreState {
   schools: string
   events: string
+  players: string
 }
 
 export interface AdminSearchStoreActions {
