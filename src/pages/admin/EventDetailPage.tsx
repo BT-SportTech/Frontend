@@ -8,6 +8,7 @@ import {
   Skeleton,
 } from '../../components/ui'
 import { resolveAssetUrl } from '../../lib/api'
+import { rankTierFromPoints } from '../../lib/rankTier'
 import {
   eventsKeys,
   fetchEvent,
@@ -336,8 +337,9 @@ export function EventDetailPage() {
                   <thead className="border-b border-line bg-accent/40 text-ink/80">
                     <tr>
                       <th className="px-3 py-2.5 font-semibold">#</th>
-                      <th className="px-3 py-2.5 font-semibold">Player</th>
-                      <th className="px-3 py-2.5 font-semibold">Username</th>
+                      <th className="px-3 py-2.5 font-semibold">Player Name</th>
+                      <th className="px-3 py-2.5 font-semibold">Unique Code</th>
+                      <th className="px-3 py-2.5 font-semibold">Rank</th>
                       <th className="px-3 py-2.5 font-semibold">Email</th>
                       <th className="px-3 py-2.5 font-semibold">Attendance</th>
                       <th className="px-3 py-2.5 font-semibold">Registered</th>
@@ -348,6 +350,7 @@ export function EventDetailPage() {
                       const fullName =
                         `${row.user.firstName} ${row.user.lastName}`.trim() ||
                         row.user.username
+                      const rank = rankTierFromPoints(row.user.totalPoints ?? 0)
                       return (
                         <tr key={row.id} className="border-b border-line/50">
                           <td className="px-3 py-2.5 tabular-nums text-ink/50">
@@ -357,8 +360,9 @@ export function EventDetailPage() {
                             {fullName}
                           </td>
                           <td className="px-3 py-2.5 text-ink/80">
-                            @{row.user.username}
+                            {row.user.username}
                           </td>
+                          <td className="px-3 py-2.5 text-ink/80">{rank}</td>
                           <td className="px-3 py-2.5 text-ink/80">
                             {row.user.email ?? '—'}
                           </td>

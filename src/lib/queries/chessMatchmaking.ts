@@ -13,6 +13,9 @@ export type ChessPlayerRef = {
     lastName: string
     username: string
   }
+  ratingBefore?: number | null
+  ratingAfter?: number | null
+  ratingDelta?: number | null
 }
 
 export type ChessMatchRow = {
@@ -60,6 +63,7 @@ export type ChessMatchmakingStatus = {
       firstName: string
       lastName: string
       username: string
+      totalPoints?: number
     }
     withdrawn: boolean
     gamesCompleted: number
@@ -68,6 +72,7 @@ export type ChessMatchmakingStatus = {
     eventDraws: number
     whiteGames: number
     blackGames: number
+    rating: number
   }[]
   rounds: {
     id: string

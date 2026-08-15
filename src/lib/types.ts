@@ -95,6 +95,7 @@ export interface UserListItem {
   id: string
   firstName: string
   lastName: string
+  username: string
   email: string
   phone?: string | null
   role: UserRole
@@ -107,7 +108,121 @@ export interface UserListItem {
   presentClass?: number | null
   company?: string | null
   createdAt: string
+  totalPoints?: number
   school?: { id: string; name: string } | null
+}
+
+export interface PlayerChessRating {
+  rating: number
+  gamesPlayed: number
+  wins: number
+  losses: number
+  draws: number
+}
+
+export interface PlayerDetail {
+  id: string
+  firstName: string
+  lastName: string
+  username: string
+  email: string | null
+  phone?: string | null
+  role: UserRole
+  gender?: Gender | null
+  dateOfBirth?: string | null
+  state?: string | null
+  district?: string | null
+  city?: string | null
+  pincode?: string | null
+  sportsInterested: string[]
+  schoolId?: string | null
+  presentClass?: number | null
+  company?: string | null
+  createdAt: string
+  totalPoints: number
+  chessRating: PlayerChessRating | null
+  school?: { id: string; name: string; city?: string | null } | null
+}
+
+export interface PlayerStatsBucket {
+  sport: string
+  played: number
+  won: number
+  lost: number
+  draw: number
+  points: number
+}
+
+export interface PlayerStats {
+  totals: {
+    played: number
+    won: number
+    lost: number
+    draw: number
+    points: number
+  }
+  bySport: PlayerStatsBucket[]
+}
+
+export type MatchOutcome = 'WIN' | 'LOSS' | 'DRAW'
+
+export interface PlayerRegistrationRow {
+  id: string
+  eventId: string
+  userId: string
+  status: string
+  registeredAt: string
+  outcome: MatchOutcome | null
+  pointsEarned: number
+  eventWins: number
+  eventLosses: number
+  eventDraws: number
+  gamesCompleted: number
+  event: {
+    id: string
+    name: string
+    sport: string
+    venue: string
+    startsAt: string
+    status: EventStatus
+  }
+}
+
+export interface PlayerMatchRow {
+  id: string
+  boardNumber: number
+  batchNumber: number | null
+  roundNumber: number | null
+  result: 'WHITE_WIN' | 'BLACK_WIN' | 'DRAW' | null
+  status: string
+  completedAt: string | null
+  event: { id: string; name: string; sport: string } | null
+  white: {
+    registrationId: string
+    userId: string
+    user: {
+      id: string
+      firstName: string
+      lastName: string
+      username: string
+    }
+    ratingBefore?: number | null
+    ratingAfter?: number | null
+    ratingDelta?: number | null
+  }
+  black: {
+    registrationId: string
+    userId: string
+    user: {
+      id: string
+      firstName: string
+      lastName: string
+      username: string
+    }
+    ratingBefore?: number | null
+    ratingAfter?: number | null
+    ratingDelta?: number | null
+  }
 }
 
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'COMPLETED' | 'CANCELLED'
@@ -172,6 +287,7 @@ export interface SportEvent {
   genders: Gender[]
   fee: number
   pointsReward: number
+  lossPoints: number
   boardCount?: number | null
   gamesPerPlayer?: number
   matchmakingStatus?: MatchmakingStatus
@@ -216,6 +332,7 @@ export interface EventPayload {
   organizerIds: string[]
   fee: number
   pointsReward: number
+  lossPoints: number
   boardCount?: number
   gamesPerPlayer?: number
   imageUrl?: string | null

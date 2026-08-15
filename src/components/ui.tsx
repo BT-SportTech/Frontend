@@ -119,3 +119,74 @@ export function Button({
     />
   )
 }
+
+export type TabItem<T extends string = string> = {
+  id: T
+  label: string
+  badge?: string | number
+  disabled?: boolean
+}
+
+export function TabBar<T extends string>({
+  tabs,
+  value,
+  onChange,
+  size = 'md',
+  className = '',
+  'aria-label': ariaLabel = 'Tabs',
+}: {
+  tabs: TabItem<T>[]
+  value: T
+  onChange: (id: T) => void
+  size?: 'sm' | 'md'
+  className?: string
+  'aria-label'?: string
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className={`flex gap-5 overflow-x-auto border-b border-line/70 ${className}`}
+    >
+      {tabs.map((tab) => {
+        const active = value === tab.id
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            disabled={tab.disabled}
+            onClick={() => onChange(tab.id)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              size === 'sm' ? 'pb-2.5 text-sm' : 'pb-3 text-[15px]'
+            } ${
+              active
+                ? 'text-ink'
+                : 'text-ink/40 hover:text-ink/65'
+            }`}
+          >
+            <span>{tab.label}</span>
+            {tab.badge != null && tab.badge !== '' ? (
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  active
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-ink/6 text-ink/40'
+                }`}
+              >
+                {tab.badge}
+              </span>
+            ) : null}
+            {active ? (
+              <span
+                aria-hidden
+                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
+              />
+            ) : null}
+          </button>
+        )
+      })}
+    </div>
+  )
+}

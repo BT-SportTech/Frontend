@@ -1,3 +1,7 @@
+import { ApiError, parseApiErrorBody } from './apiErrors'
+
+export { ApiError, isApiError } from './apiErrors'
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
 export function getApiBaseUrl() {
@@ -104,11 +108,14 @@ export async function api<T>(
   if (!res.ok) {
     let message = `Request failed (${res.status})`
     try {
-      const err = (await res.json()) as { message?: string | string[] }
-      if (Array.isArray(err.message)) message = err.message.join(', ')
-      else if (err.message) message = err.message
-    } catch {
-      /* ignore */
+      const err = (await res.json()) as {
+        message?: string | string[]
+        field?: string
+        code?: string
+      }
+      throw parseApiErrorBody(res.status, err)
+    } catch (e) {
+      if (e instanceof ApiError) throw e
     }
     throw new Error(message)
   }

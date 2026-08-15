@@ -16,11 +16,16 @@ const TAB_CONFIG: Record<
     match: (path) => path === '/admin/events',
     placeholder: 'Search name, sport, venue…',
   },
+  players: {
+    match: (path) => path === '/admin/players',
+    placeholder: 'Search name, code, email…',
+  },
 }
 
 function resolveTab(pathname: string): AdminSearchTab | null {
   if (TAB_CONFIG.schools.match(pathname)) return 'schools'
   if (TAB_CONFIG.events.match(pathname)) return 'events'
+  if (TAB_CONFIG.players.match(pathname)) return 'players'
   return null
 }
 

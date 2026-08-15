@@ -9,7 +9,6 @@ import {
   GlassPanel,
   SelectInput,
   TextArea,
-  TextInput,
 } from '../../components/ui'
 import { Modal } from '../../components/ui/Modal'
 import {
@@ -21,7 +20,12 @@ import {
 } from '../../lib/eventForm'
 import { getDistricts, getStates, withCurrentOption } from '../../lib/locations'
 import { EventImageUploadField } from '../../components/events/EventImageUploadField'
-import { resolveAssetUrl } from '../../lib/api'
+import {
+  SelectFormField,
+  TextFormField,
+} from '../../components/events/EventFormField'
+import { PlayerIdentity } from '../../components/PlayerIdentity'
+import { isApiError, resolveAssetUrl } from '../../lib/api'
 import {
   eventsKeys,
   fetchEventRegistrations,
@@ -38,6 +42,28 @@ import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
 import type { EventStatus, Gender, SportEvent } from '../../lib/types'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 import { toast } from '../../stores/useToastStore'
+import {
+  buildEventFormSchema,
+  parseEventFieldErrors,
+} from '../../schemas/eventForm.schema'
+
+const EVENT_FIELD_ORDER: (keyof EventFormState)[] = [
+  'name',
+  'gameId',
+  'venue',
+  'startsAt',
+  'endsAt',
+  'registrationOpensAt',
+  'registrationClosesAt',
+  'maxParticipants',
+  'boardCount',
+  'gamesPerPlayer',
+  'state',
+  'district',
+  'fee',
+  'pointsReward',
+  'lossPoints',
+]
 
 const STATUS_STYLES: Record<EventStatus, string> = {
   DRAFT: 'bg-ink/10 text-ink/70',
@@ -65,6 +91,10 @@ export function EventsPage() {
   const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('')
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<EventFormState>(emptyEventForm())
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof EventFormState, string>>
+  >({})
+  const [formError, setFormError] = useState('')
   const [confirmPublish, setConfirmPublish] = useState<{
     id: string
     name: string
@@ -148,10 +178,24 @@ export function EventsPage() {
     mutationFn: async () => saveEvent({ editingId: null, form }),
     onSuccess: async () => {
       setModalOpen(false)
+      setFieldErrors({})
+      setFormError('')
       toast.success('Event saved as draft.')
       await invalidate()
     },
     onError: (err) => {
+      if (isApiError(err)) {
+        setFieldErrors(err.fieldErrors)
+        setFormError(
+          Object.keys(err.fieldErrors).length === 0 ? err.message : '',
+        )
+        if (Object.keys(err.fieldErrors).length === 0) {
+          toast.error(err.message)
+        }
+        scrollToFirstFieldError(err.fieldErrors)
+        return
+      }
+      setFormError('')
       toast.error(err instanceof Error ? err.message : 'Save failed')
     },
   })
@@ -178,13 +222,37 @@ export function EventsPage() {
 
   function openCreate() {
     setForm(emptyEventForm())
+    setFieldErrors({})
+    setFormError('')
     setModalOpen(true)
+  }
+
+  function scrollToFirstFieldError(
+    errors: Partial<Record<keyof EventFormState, string>>,
+  ) {
+    const firstKey = EVENT_FIELD_ORDER.find((key) => errors[key])
+    if (!firstKey) return
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-event-field="${firstKey}"]`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (el instanceof HTMLElement) {
+        const input = el.querySelector('input, select, textarea')
+        if (input instanceof HTMLElement) input.focus()
+      }
+    })
   }
 
   function patchForm<K extends keyof EventFormState>(
     key: K,
     value: EventFormState[K],
   ) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    setFormError('')
     setForm((prev) => {
       const next = { ...prev, [key]: value }
       if (key === 'state') next.district = ''
@@ -221,25 +289,18 @@ export function EventsPage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!form.gameId) {
-      toast.error('Select a game.')
+    setFormError('')
+
+    const schema = buildEventFormSchema(selectedGame?.name === 'Chess')
+    const parsed = schema.safeParse(form)
+    if (!parsed.success) {
+      const errors = parseEventFieldErrors(parsed.error)
+      setFieldErrors(errors)
+      scrollToFirstFieldError(errors)
       return
     }
-    if (selectedGame?.name === 'Chess') {
-      const boards = parseInt(form.boardCount, 10)
-      if (!boards || boards < 1) {
-        toast.error('Board count is required for Chess events (at least 1).')
-        return
-      }
-    }
-    const hasState = Boolean(form.state.trim())
-    const hasDistrict = Boolean(form.district.trim())
-    if (hasState !== hasDistrict) {
-      toast.error(
-        'Set both state and district for a zone, or leave both empty for nationwide.',
-      )
-      return
-    }
+
+    setFieldErrors({})
     saveMutation.mutate()
   }
 
@@ -441,12 +502,21 @@ export function EventsPage() {
         className="max-w-2xl"
       >
         <form className="space-y-4" onSubmit={onSubmit}>
+          {formError ? (
+            <p
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              role="alert"
+            >
+              {formError}
+            </p>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <FieldLabel>Event name</FieldLabel>
-              <TextInput
+            <div className="sm:col-span-2" data-event-field="name">
+              <TextFormField
+                label="Event name"
                 required
                 value={form.name}
+                error={fieldErrors.name}
                 onChange={(e) => patchForm('name', e.target.value)}
               />
             </div>
@@ -454,6 +524,7 @@ export function EventsPage() {
               <EventImageUploadField
                 imageUrl={form.imageUrl}
                 imageFile={form.imageFile}
+                error={fieldErrors.imageUrl}
                 onSelect={(file) =>
                   setForm((prev) => ({
                     ...prev,
@@ -470,11 +541,12 @@ export function EventsPage() {
                 }
               />
             </div>
-            <div className="sm:col-span-2">
-              <FieldLabel>Game</FieldLabel>
-              <SelectInput
+            <div className="sm:col-span-2" data-event-field="gameId">
+              <SelectFormField
+                label="Game"
                 required
                 value={form.gameId}
+                error={fieldErrors.gameId}
                 onChange={(e) => {
                   const gameId = e.target.value
                   const game = games.find((g) => g.id === gameId)
@@ -484,7 +556,16 @@ export function EventsPage() {
                     pointsReward: game
                       ? String(game.winPoints)
                       : prev.pointsReward,
+                    lossPoints: game
+                      ? String(game.lossPoints)
+                      : prev.lossPoints,
                   }))
+                  setFieldErrors((prev) => {
+                    if (!prev.gameId) return prev
+                    const next = { ...prev }
+                    delete next.gameId
+                    return next
+                  })
                 }}
               >
                 <option value="">Select game</option>
@@ -493,7 +574,7 @@ export function EventsPage() {
                     {g.name}
                   </option>
                 ))}
-              </SelectInput>
+              </SelectFormField>
               {games.length === 0 ? (
                 <p className="mt-2 text-sm text-ink/55">
                   No catalog games found. Run the backend seed to add{' '}
@@ -549,110 +630,124 @@ export function EventsPage() {
                 onChange={(e) => patchForm('description', e.target.value)}
               />
             </div>
-            <div className="sm:col-span-2">
-              <FieldLabel>Venue</FieldLabel>
-              <TextInput
+            <div className="sm:col-span-2" data-event-field="venue">
+              <TextFormField
+                label="Venue"
                 required
                 value={form.venue}
+                error={fieldErrors.venue}
                 onChange={(e) => patchForm('venue', e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>Starts at</FieldLabel>
-              <TextInput
+            <div data-event-field="startsAt">
+              <TextFormField
+                label="Starts at"
                 type="datetime-local"
                 required
                 value={form.startsAt}
+                error={fieldErrors.startsAt}
                 onChange={(e) => patchForm('startsAt', e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>Ends at (optional)</FieldLabel>
-              <TextInput
+            <div data-event-field="endsAt">
+              <TextFormField
+                label="Ends at (optional)"
                 type="datetime-local"
                 value={form.endsAt}
+                error={fieldErrors.endsAt}
                 onChange={(e) => patchForm('endsAt', e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>Registration opens</FieldLabel>
-              <TextInput
+            <div data-event-field="registrationOpensAt">
+              <TextFormField
+                label="Registration opens"
                 type="datetime-local"
                 required
                 value={form.registrationOpensAt}
+                error={fieldErrors.registrationOpensAt}
                 onChange={(e) =>
                   patchForm('registrationOpensAt', e.target.value)
                 }
               />
             </div>
-            <div>
-              <FieldLabel>Registration closes</FieldLabel>
-              <TextInput
+            <div data-event-field="registrationClosesAt">
+              <TextFormField
+                label="Registration closes"
                 type="datetime-local"
                 required
                 value={form.registrationClosesAt}
+                error={fieldErrors.registrationClosesAt}
                 onChange={(e) =>
                   patchForm('registrationClosesAt', e.target.value)
                 }
               />
             </div>
-            <div>
-              <FieldLabel>Max participants</FieldLabel>
-              <TextInput
+            <div data-event-field="maxParticipants">
+              <TextFormField
+                label="Max participants"
                 type="number"
                 min={1}
                 required
                 value={form.maxParticipants}
+                error={fieldErrors.maxParticipants}
                 onChange={(e) => patchForm('maxParticipants', e.target.value)}
               />
             </div>
             {selectedGame?.name === 'Chess' ? (
               <>
-                <div>
-                  <FieldLabel>Chess boards</FieldLabel>
-                  <TextInput
+                <div data-event-field="boardCount">
+                  <TextFormField
+                    label="Chess boards"
                     type="number"
                     min={1}
                     required
                     value={form.boardCount}
+                    error={fieldErrors.boardCount}
                     onChange={(e) => patchForm('boardCount', e.target.value)}
+                    hint={
+                      <p className="mt-1 text-xs text-ink/50">
+                        How many boards are available at the venue. Organizers can
+                        override when starting matchmaking.
+                      </p>
+                    }
                   />
-                  <p className="mt-1 text-xs text-ink/50">
-                    How many boards are available at the venue. Organizers can
-                    override when starting matchmaking.
-                  </p>
                 </div>
-                <div>
-                  <FieldLabel>Games per player</FieldLabel>
-                  <TextInput
+                <div data-event-field="gamesPerPlayer">
+                  <TextFormField
+                    label="Games per player"
                     type="number"
                     min={1}
                     value={form.gamesPerPlayer}
+                    error={fieldErrors.gamesPerPlayer}
                     onChange={(e) =>
                       patchForm('gamesPerPlayer', e.target.value)
                     }
+                    hint={
+                      <p className="mt-1 text-xs text-ink/50">
+                        How many games each player must play (e.g. 3). Pairing
+                        sessions repeat as needed based on board count.
+                      </p>
+                    }
                   />
-                  <p className="mt-1 text-xs text-ink/50">
-                    How many games each player must play (e.g. 3). Pairing
-                    sessions repeat as needed based on board count.
-                  </p>
                 </div>
               </>
             ) : null}
-            <div>
-              <FieldLabel>Fee</FieldLabel>
-              <TextInput
+            <div data-event-field="fee">
+              <TextFormField
+                label="Fee"
                 type="number"
                 min={0}
                 step="0.01"
                 value={form.fee}
+                error={fieldErrors.fee}
                 onChange={(e) => patchForm('fee', e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>State (optional zone)</FieldLabel>
-              <SelectInput
+            <div data-event-field="state">
+              <SelectFormField
+                label="State (optional zone)"
                 value={form.state}
+                error={fieldErrors.state}
                 onChange={(e) => patchForm('state', e.target.value)}
               >
                 <option value="">Nationwide</option>
@@ -661,12 +756,13 @@ export function EventsPage() {
                     {s}
                   </option>
                 ))}
-              </SelectInput>
+              </SelectFormField>
             </div>
-            <div>
-              <FieldLabel>District (optional zone)</FieldLabel>
-              <SelectInput
+            <div data-event-field="district">
+              <SelectFormField
+                label="District (optional zone)"
                 value={form.district}
+                error={fieldErrors.district}
                 disabled={!form.state}
                 onChange={(e) => patchForm('district', e.target.value)}
               >
@@ -678,15 +774,26 @@ export function EventsPage() {
                     {d}
                   </option>
                 ))}
-              </SelectInput>
+              </SelectFormField>
             </div>
-            <div>
-              <FieldLabel>Points reward</FieldLabel>
-              <TextInput
+            <div data-event-field="pointsReward">
+              <TextFormField
+                label="Win points"
                 type="number"
                 min={0}
                 value={form.pointsReward}
+                error={fieldErrors.pointsReward}
                 onChange={(e) => patchForm('pointsReward', e.target.value)}
+              />
+            </div>
+            <div data-event-field="lossPoints">
+              <TextFormField
+                label="Loss points"
+                type="number"
+                min={0}
+                value={form.lossPoints}
+                error={fieldErrors.lossPoints}
+                onChange={(e) => patchForm('lossPoints', e.target.value)}
               />
             </div>
           </div>
@@ -705,10 +812,15 @@ export function EventsPage() {
             </div>
           </div>
 
-          <div>
+          <div data-event-field="schoolIds">
             <FieldLabel>
               Target schools (optional — empty = all eligible schools)
             </FieldLabel>
+            {fieldErrors.schoolIds ? (
+              <p className="mt-1 text-sm text-red-600" role="alert">
+                {fieldErrors.schoolIds}
+              </p>
+            ) : null}
             <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
               {schools.length === 0 ? (
                 <p className="text-sm text-ink/50">No schools available</p>
@@ -725,8 +837,13 @@ export function EventsPage() {
             </div>
           </div>
 
-          <div>
+          <div data-event-field="organizerIds">
             <FieldLabel>Assign organisers (optional)</FieldLabel>
+            {fieldErrors.organizerIds ? (
+              <p className="mt-1 text-sm text-red-600" role="alert">
+                {fieldErrors.organizerIds}
+              </p>
+            ) : null}
             <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
               {organizers.length === 0 ? (
                 <p className="text-sm text-ink/50">
@@ -813,22 +930,18 @@ export function EventsPage() {
           </p>
         ) : (
           <div className="max-h-80 space-y-2 overflow-y-auto">
-            {resultsRows.map((row) => {
-              const name =
-                `${row.user.firstName} ${row.user.lastName}`.trim() ||
-                row.user.username
-              return (
+            {resultsRows.map((row) => (
                 <div
                   key={row.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-3 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">
-                      {name}
-                    </p>
-                    <p className="truncate text-xs text-ink/50">
-                      @{row.user.username}
-                    </p>
+                    <PlayerIdentity
+                      username={row.user.username}
+                      firstName={row.user.firstName}
+                      lastName={row.user.lastName}
+                      totalPoints={row.user.totalPoints}
+                    />
                   </div>
                   <SelectInput
                     className="!w-28 !py-1.5 text-sm"
@@ -845,8 +958,7 @@ export function EventsPage() {
                     <option value="DRAW">Draw</option>
                   </SelectInput>
                 </div>
-              )
-            })}
+              ))}
           </div>
         )}
         <div className="mt-5 flex justify-end gap-3">
