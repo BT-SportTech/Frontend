@@ -1,4 +1,5 @@
 import { api } from '../api'
+import type { RankTier } from '../rankTier'
 import type {
   Paginated,
   PlayerDetail,
@@ -14,6 +15,9 @@ export type UsersListParams = {
   limit: number
   search?: string
   role?: UserRole
+  state?: string
+  city?: string
+  rank?: RankTier
 }
 
 export const usersKeys = {
@@ -38,6 +42,9 @@ export async function fetchUsers(
   })
   if (params.search) searchParams.set('search', params.search)
   if (params.role) searchParams.set('role', params.role)
+  if (params.state) searchParams.set('state', params.state)
+  if (params.city) searchParams.set('city', params.city)
+  if (params.rank) searchParams.set('rank', params.rank)
 
   return api<Paginated<UserListItem>>(`/users?${searchParams.toString()}`)
 }

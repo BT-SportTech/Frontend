@@ -18,10 +18,29 @@ export function GlassPanel({
   )
 }
 
-export function FieldLabel({ children }: { children: ReactNode }) {
+const controlBase =
+  'rounded-none border border-line/90 bg-bg text-sm font-medium text-ink outline-none transition placeholder:font-normal placeholder:text-ink/35 hover:border-ink/25 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/12 disabled:cursor-not-allowed disabled:bg-ink/[0.03] disabled:opacity-50 aria-invalid:border-red-400 aria-invalid:focus:ring-red-500/15'
+
+export function FieldLabel({
+  children,
+  htmlFor,
+  required,
+}: {
+  children: ReactNode
+  htmlFor?: string
+  required?: boolean
+}) {
   return (
-    <label className="mb-1.5 block text-sm font-medium text-ink/70">
+    <label
+      htmlFor={htmlFor}
+      className="mb-1.5 block text-[13px] font-semibold tracking-wide text-ink/65"
+    >
       {children}
+      {required ? (
+        <span className="ml-0.5 text-red-500" aria-hidden>
+          *
+        </span>
+      ) : null}
     </label>
   )
 }
@@ -32,20 +51,23 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...rest}
-      className={`${hasWidth ? '' : 'w-full'} rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary focus:ring-2 focus:ring-primary/15 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} h-11 ${controlBase} px-3.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 ${className}`}
     />
   )
 }
 
+const selectChevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E")`
+
 export function SelectInput(
   props: React.SelectHTMLAttributes<HTMLSelectElement>,
 ) {
-  const { className = '', children, ...rest } = props
+  const { className = '', children, style, ...rest } = props
   const hasWidth = /\bw-/.test(className)
   return (
     <select
       {...rest}
-      className={`${hasWidth ? '' : 'w-full'} rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} h-11 appearance-none ${controlBase} bg-[length:1rem] bg-[right_0.85rem_center] bg-no-repeat px-3.5 pr-10 ${className}`}
+      style={{ backgroundImage: selectChevron, ...style }}
     >
       {children}
     </select>
@@ -60,7 +82,7 @@ export function TextArea(
   return (
     <textarea
       {...rest}
-      className={`${hasWidth ? '' : 'w-full'} rounded-lg border border-line bg-white px-3.5 py-2.5 text-ink outline-none transition placeholder:text-ink/35 focus:border-primary focus:ring-2 focus:ring-primary/15 ${className}`}
+      className={`${hasWidth ? '' : 'w-full'} min-h-[6.5rem] ${controlBase} resize-y px-3.5 py-3 leading-relaxed ${className}`}
     />
   )
 }
@@ -75,7 +97,7 @@ export function CheckboxField({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex items-center gap-2.5 text-sm font-medium text-ink/75">
+    <label className="flex cursor-pointer items-center gap-2.5 text-sm font-medium text-ink/75">
       <input
         type="checkbox"
         checked={checked}

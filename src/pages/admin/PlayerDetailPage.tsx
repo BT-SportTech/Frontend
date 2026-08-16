@@ -5,6 +5,7 @@ import { Pagination } from '../../components/Pagination'
 import { GlassPanel, Skeleton, TabBar } from '../../components/ui'
 import { displayName } from '../../lib/displayName'
 import { rankTierFromPoints } from '../../lib/rankTier'
+import { formatUniqueCode } from '../../lib/uniqueCode'
 import {
   fetchPlayer,
   fetchPlayerMatches,
@@ -117,7 +118,9 @@ function ProfileHero({
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
           {name}
         </h1>
-        <p className="mt-0.5 font-mono text-sm text-ink/50">{player.username}</p>
+        <p className="mt-0.5 font-mono text-sm text-ink/50">
+          {formatUniqueCode(player.username)}
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
             {rank}
@@ -665,7 +668,7 @@ export function PlayerDetailPage() {
                               )}
                               {opponent ? (
                                 <p className="mt-0.5 font-mono text-xs text-ink/45">
-                                  {opponent.user.username}
+                                  {formatUniqueCode(opponent.user.username)}
                                 </p>
                               ) : null}
                             </td>

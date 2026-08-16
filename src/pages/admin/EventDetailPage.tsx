@@ -9,6 +9,7 @@ import {
 } from '../../components/ui'
 import { resolveAssetUrl } from '../../lib/api'
 import { rankTierFromPoints } from '../../lib/rankTier'
+import { formatUniqueCode } from '../../lib/uniqueCode'
 import {
   eventsKeys,
   fetchEvent,
@@ -360,7 +361,7 @@ export function EventDetailPage() {
                             {fullName}
                           </td>
                           <td className="px-3 py-2.5 text-ink/80">
-                            {row.user.username}
+                            {formatUniqueCode(row.user.username)}
                           </td>
                           <td className="px-3 py-2.5 text-ink/80">{rank}</td>
                           <td className="px-3 py-2.5 text-ink/80">

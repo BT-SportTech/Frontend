@@ -145,7 +145,7 @@ function BoardCard({
           </span>
         ) : (
           <span className="text-xs font-semibold text-amber-700">
-            Tap a player to set the winner
+            Tap White, Black, or Draw
           </span>
         )}
       </div>
@@ -179,20 +179,34 @@ function BoardCard({
           ) : null}
         </button>
 
-        <div className="flex flex-col items-center justify-center gap-2">
-          <span className="text-xs font-bold text-ink/25">VS</span>
+        <div className="flex flex-col items-center justify-center self-center">
           {!done ? (
             <button
               type="button"
               disabled={busy}
               onClick={() => onResult('DRAW')}
-              className="rounded-lg px-2 py-1 text-[11px] font-semibold text-ink/45 transition hover:bg-ink/5 hover:text-ink"
+              className="rounded-xl border border-line bg-white px-3 py-3 text-center transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98] disabled:cursor-default"
             >
-              Draw
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
+                Draw
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-ink">½–½</p>
             </button>
           ) : isDraw ? (
-            <span className="text-[11px] font-bold text-ink/50">½–½</span>
-          ) : null}
+            <div className="rounded-xl border border-emerald-400 bg-emerald-50 px-3 py-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
+                Draw
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-ink">½–½</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-transparent px-3 py-3 text-center opacity-50">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
+                Draw
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-ink/50">½–½</p>
+            </div>
+          )}
         </div>
 
         <button

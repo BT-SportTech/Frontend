@@ -53,50 +53,65 @@ export function EventImageUploadField({
   }
 
   const displayError = error ?? localError
+  const hasImage = Boolean(previewUrl)
 
   return (
     <div>
       <FieldLabel>Event image</FieldLabel>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="flex h-28 w-44 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">
-          {previewUrl ? (
+      <div
+        className={`flex flex-col gap-4 rounded-none border border-dashed p-4 sm:flex-row sm:items-center ${
+          displayError
+            ? 'border-red-300 bg-red-50/40'
+            : 'border-line bg-bg'
+        }`}
+      >
+        <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-none border border-line/80 bg-white sm:w-44">
+          {hasImage ? (
             <img
               src={previewUrl}
               alt="Event image preview"
               className="h-full w-full object-cover"
             />
           ) : (
-            <span className="px-2 text-center text-xs text-ink/40">
-              No image
-            </span>
+            <div className="px-3 text-center">
+              <p className="text-xs font-semibold text-ink/40">No image yet</p>
+              <p className="mt-1 text-[11px] text-ink/30">Hero on mobile</p>
+            </div>
           )}
         </div>
 
-        <div className="flex flex-1 flex-col gap-2">
-          <label className="inline-flex cursor-pointer">
-            <input
-              type="file"
-              accept={ACCEPTED_TYPES.join(',')}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <span className="inline-flex items-center justify-center rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-accent/40">
-              Choose image
-            </span>
-          </label>
-          {imageFile || imageUrl ? (
-            <Button type="button" variant="ghost" onClick={onClear}>
-              Remove image
-            </Button>
-          ) : null}
-          <p className="text-xs text-ink/45">
-            Shown on the event detail screen in the app. JPEG, PNG, WebP, or GIF
-            up to 5 MB
+        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex cursor-pointer">
+              <input
+                type="file"
+                accept={ACCEPTED_TYPES.join(',')}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <span className="inline-flex h-10 items-center justify-center rounded-none border border-line/90 bg-white px-4 text-sm font-semibold text-ink transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary">
+                {hasImage ? 'Replace image' : 'Choose image'}
+              </span>
+            </label>
+            {imageFile || imageUrl ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="!h-10 !rounded-none"
+                onClick={onClear}
+              >
+                Remove
+              </Button>
+            ) : null}
+          </div>
+          <p className="text-xs leading-relaxed text-ink/45">
+            Shown as the event hero in the app. JPEG, PNG, WebP, or GIF up to
+            5 MB.
           </p>
         </div>
       </div>
       {displayError ? (
-        <p className="mt-1.5 text-sm text-red-600" role="alert">
+        <p className="mt-1.5 text-[13px] font-medium text-red-600" role="alert">
           {displayError}
         </p>
       ) : null}

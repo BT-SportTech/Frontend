@@ -1,69 +1,23 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react'
+import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Pagination } from '../../components/Pagination'
-import {
-  Button,
-  CheckboxField,
-  FieldLabel,
-  GlassPanel,
-  SelectInput,
-  TextArea,
-} from '../../components/ui'
+import { Button, GlassPanel, SelectInput } from '../../components/ui'
 import { Modal } from '../../components/ui/Modal'
-import {
-  ADMIN_EVENT_GAMES,
-  AGE_CATEGORIES,
-  emptyEventForm,
-  EVENT_GENDERS,
-  type EventFormState,
-} from '../../lib/eventForm'
-import { getDistricts, getStates, withCurrentOption } from '../../lib/locations'
-import { EventImageUploadField } from '../../components/events/EventImageUploadField'
-import {
-  SelectFormField,
-  TextFormField,
-} from '../../components/events/EventFormField'
 import { PlayerIdentity } from '../../components/PlayerIdentity'
-import { isApiError, resolveAssetUrl } from '../../lib/api'
+import { resolveAssetUrl } from '../../lib/api'
 import {
   eventsKeys,
   fetchEventRegistrations,
   fetchEvents,
   publishEvent,
-  saveEvent,
   submitEventResults,
   type EventRegistrationRow,
   type MatchOutcome,
 } from '../../lib/queries/events'
-import { fetchGames, gamesKeys } from '../../lib/queries/games'
-import { fetchOrganizers, organizersKeys } from '../../lib/queries/organizers'
-import { fetchSchools, schoolsKeys } from '../../lib/queries/schools'
-import type { EventStatus, Gender, SportEvent } from '../../lib/types'
+import type { EventStatus, SportEvent } from '../../lib/types'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 import { toast } from '../../stores/useToastStore'
-import {
-  buildEventFormSchema,
-  parseEventFieldErrors,
-} from '../../schemas/eventForm.schema'
-
-const EVENT_FIELD_ORDER: (keyof EventFormState)[] = [
-  'name',
-  'gameId',
-  'venue',
-  'startsAt',
-  'endsAt',
-  'registrationOpensAt',
-  'registrationClosesAt',
-  'maxParticipants',
-  'boardCount',
-  'gamesPerPlayer',
-  'state',
-  'district',
-  'fee',
-  'pointsReward',
-  'lossPoints',
-]
 
 const STATUS_STYLES: Record<EventStatus, string> = {
   DRAFT: 'bg-ink/10 text-ink/70',
@@ -71,8 +25,6 @@ const STATUS_STYLES: Record<EventStatus, string> = {
   COMPLETED: 'bg-sky-100 text-sky-800',
   CANCELLED: 'bg-red-100 text-red-700',
 }
-
-const ADMIN_GAME_NAME_SET = new Set<string>(ADMIN_EVENT_GAMES)
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -89,12 +41,6 @@ export function EventsPage() {
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
   const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<EventFormState>(emptyEventForm())
-  const [fieldErrors, setFieldErrors] = useState<
-    Partial<Record<keyof EventFormState, string>>
-  >({})
-  const [formError, setFormError] = useState('')
   const [confirmPublish, setConfirmPublish] = useState<{
     id: string
     name: string
@@ -136,69 +82,13 @@ export function EventsPage() {
       }),
   })
 
-  const { data: schoolsData } = useQuery({
-    queryKey: schoolsKeys.list({ page: 1, limit: 100 }),
-    queryFn: () => fetchSchools({ page: 1, limit: 100 }),
-  })
-
-  const { data: gamesData } = useQuery({
-    queryKey: gamesKeys.list({ page: 1, limit: 100, isActive: true }),
-    queryFn: () => fetchGames({ page: 1, limit: 100, isActive: true }),
-  })
-
-  const { data: organizersData } = useQuery({
-    queryKey: organizersKeys.list(),
-    queryFn: fetchOrganizers,
-  })
-
   const events = data?.data ?? []
   const total = data?.meta.total ?? 0
   const totalPages = data?.meta.totalPages ?? 0
-  const schools = schoolsData?.data ?? []
-  const organizers = organizersData?.organizers ?? []
-  const games = useMemo(() => {
-    const active = gamesData?.data ?? []
-    return ADMIN_EVENT_GAMES.map((name) =>
-      active.find((g) => g.name === name),
-    ).filter((g): g is NonNullable<typeof g> => Boolean(g))
-  }, [gamesData?.data])
-  const selectedGame = games.find((g) => g.id === form.gameId) ?? null
-
-  const states = useMemo(() => getStates(), [])
-  const districts = useMemo(
-    () => withCurrentOption(getDistricts(form.state), form.district),
-    [form.state, form.district],
-  )
 
   const invalidate = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: eventsKeys.all })
   }, [queryClient])
-
-  const saveMutation = useMutation({
-    mutationFn: async () => saveEvent({ editingId: null, form }),
-    onSuccess: async () => {
-      setModalOpen(false)
-      setFieldErrors({})
-      setFormError('')
-      toast.success('Event saved as draft.')
-      await invalidate()
-    },
-    onError: (err) => {
-      if (isApiError(err)) {
-        setFieldErrors(err.fieldErrors)
-        setFormError(
-          Object.keys(err.fieldErrors).length === 0 ? err.message : '',
-        )
-        if (Object.keys(err.fieldErrors).length === 0) {
-          toast.error(err.message)
-        }
-        scrollToFirstFieldError(err.fieldErrors)
-        return
-      }
-      setFormError('')
-      toast.error(err instanceof Error ? err.message : 'Save failed')
-    },
-  })
 
   const publishMutation = useMutation({
     mutationFn: async (id: string) => publishEvent(id),
@@ -219,90 +109,6 @@ export function EventsPage() {
       listError instanceof Error ? listError.message : 'Failed to load events',
     )
   }, [isError, listError])
-
-  function openCreate() {
-    setForm(emptyEventForm())
-    setFieldErrors({})
-    setFormError('')
-    setModalOpen(true)
-  }
-
-  function scrollToFirstFieldError(
-    errors: Partial<Record<keyof EventFormState, string>>,
-  ) {
-    const firstKey = EVENT_FIELD_ORDER.find((key) => errors[key])
-    if (!firstKey) return
-    requestAnimationFrame(() => {
-      const el = document.querySelector(`[data-event-field="${firstKey}"]`)
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      if (el instanceof HTMLElement) {
-        const input = el.querySelector('input, select, textarea')
-        if (input instanceof HTMLElement) input.focus()
-      }
-    })
-  }
-
-  function patchForm<K extends keyof EventFormState>(
-    key: K,
-    value: EventFormState[K],
-  ) {
-    setFieldErrors((prev) => {
-      if (!prev[key]) return prev
-      const next = { ...prev }
-      delete next[key]
-      return next
-    })
-    setFormError('')
-    setForm((prev) => {
-      const next = { ...prev, [key]: value }
-      if (key === 'state') next.district = ''
-      return next
-    })
-  }
-
-  function toggleGender(gender: Gender) {
-    setForm((prev) => ({
-      ...prev,
-      genders: prev.genders.includes(gender)
-        ? prev.genders.filter((g) => g !== gender)
-        : [...prev.genders, gender],
-    }))
-  }
-
-  function toggleSchool(schoolId: string) {
-    setForm((prev) => ({
-      ...prev,
-      schoolIds: prev.schoolIds.includes(schoolId)
-        ? prev.schoolIds.filter((id) => id !== schoolId)
-        : [...prev.schoolIds, schoolId],
-    }))
-  }
-
-  function toggleOrganizer(organizerId: string) {
-    setForm((prev) => ({
-      ...prev,
-      organizerIds: prev.organizerIds.includes(organizerId)
-        ? prev.organizerIds.filter((id) => id !== organizerId)
-        : [...prev.organizerIds, organizerId],
-    }))
-  }
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setFormError('')
-
-    const schema = buildEventFormSchema(selectedGame?.name === 'Chess')
-    const parsed = schema.safeParse(form)
-    if (!parsed.success) {
-      const errors = parseEventFieldErrors(parsed.error)
-      setFieldErrors(errors)
-      scrollToFirstFieldError(errors)
-      return
-    }
-
-    setFieldErrors({})
-    saveMutation.mutate()
-  }
 
   async function openResults(event: SportEvent, e: MouseEvent) {
     e.stopPropagation()
@@ -352,7 +158,7 @@ export function EventsPage() {
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
           </SelectInput>
-          <Button type="button" onClick={openCreate}>
+          <Button type="button" onClick={() => navigate('/admin/events/new')}>
             Create event
           </Button>
         </div>
@@ -496,388 +302,6 @@ export function EventsPage() {
       </GlassPanel>
 
       <Modal
-        open={modalOpen}
-        title="Create event"
-        onClose={() => setModalOpen(false)}
-        className="max-w-2xl"
-      >
-        <form className="space-y-4" onSubmit={onSubmit}>
-          {formError ? (
-            <p
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-              role="alert"
-            >
-              {formError}
-            </p>
-          ) : null}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2" data-event-field="name">
-              <TextFormField
-                label="Event name"
-                required
-                value={form.name}
-                error={fieldErrors.name}
-                onChange={(e) => patchForm('name', e.target.value)}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <EventImageUploadField
-                imageUrl={form.imageUrl}
-                imageFile={form.imageFile}
-                error={fieldErrors.imageUrl}
-                onSelect={(file) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    imageFile: file,
-                    imageUrl: prev.imageUrl,
-                  }))
-                }
-                onClear={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    imageFile: null,
-                    imageUrl: '',
-                  }))
-                }
-              />
-            </div>
-            <div className="sm:col-span-2" data-event-field="gameId">
-              <SelectFormField
-                label="Game"
-                required
-                value={form.gameId}
-                error={fieldErrors.gameId}
-                onChange={(e) => {
-                  const gameId = e.target.value
-                  const game = games.find((g) => g.id === gameId)
-                  setForm((prev) => ({
-                    ...prev,
-                    gameId,
-                    pointsReward: game
-                      ? String(game.winPoints)
-                      : prev.pointsReward,
-                    lossPoints: game
-                      ? String(game.lossPoints)
-                      : prev.lossPoints,
-                  }))
-                  setFieldErrors((prev) => {
-                    if (!prev.gameId) return prev
-                    const next = { ...prev }
-                    delete next.gameId
-                    return next
-                  })
-                }}
-              >
-                <option value="">Select game</option>
-                {games.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </SelectFormField>
-              {games.length === 0 ? (
-                <p className="mt-2 text-sm text-ink/55">
-                  No catalog games found. Run the backend seed to add{' '}
-                  {ADMIN_EVENT_GAMES.join(', ')}.
-                </p>
-              ) : null}
-              {selectedGame && ADMIN_GAME_NAME_SET.has(selectedGame.name) ? (
-                <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-white px-3 py-2.5">
-                  {selectedGame.imageUrl ? (
-                    <img
-                      src={resolveAssetUrl(selectedGame.imageUrl)}
-                      alt=""
-                      className="h-8 w-12 shrink-0 rounded object-cover"
-                    />
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-ink">{selectedGame.name}</p>
-                    <p className="mt-0.5 text-sm text-ink/55">
-                      Players per match{' '}
-                      <span className="font-mono font-semibold tabular-nums text-ink">
-                        {selectedGame.sidesPerMatch} &times;{' '}
-                        {selectedGame.playersPerSide} ={' '}
-                        {selectedGame.playersPerMatch}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-            <div>
-              <FieldLabel>Age category</FieldLabel>
-              <SelectInput
-                value={form.ageCategory}
-                onChange={(e) =>
-                  patchForm(
-                    'ageCategory',
-                    e.target.value as EventFormState['ageCategory'],
-                  )
-                }
-              >
-                {AGE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </SelectInput>
-            </div>
-            <div className="sm:col-span-2">
-              <FieldLabel>Description</FieldLabel>
-              <TextArea
-                rows={3}
-                value={form.description}
-                onChange={(e) => patchForm('description', e.target.value)}
-              />
-            </div>
-            <div className="sm:col-span-2" data-event-field="venue">
-              <TextFormField
-                label="Venue"
-                required
-                value={form.venue}
-                error={fieldErrors.venue}
-                onChange={(e) => patchForm('venue', e.target.value)}
-              />
-            </div>
-            <div data-event-field="startsAt">
-              <TextFormField
-                label="Starts at"
-                type="datetime-local"
-                required
-                value={form.startsAt}
-                error={fieldErrors.startsAt}
-                onChange={(e) => patchForm('startsAt', e.target.value)}
-              />
-            </div>
-            <div data-event-field="endsAt">
-              <TextFormField
-                label="Ends at (optional)"
-                type="datetime-local"
-                value={form.endsAt}
-                error={fieldErrors.endsAt}
-                onChange={(e) => patchForm('endsAt', e.target.value)}
-              />
-            </div>
-            <div data-event-field="registrationOpensAt">
-              <TextFormField
-                label="Registration opens"
-                type="datetime-local"
-                required
-                value={form.registrationOpensAt}
-                error={fieldErrors.registrationOpensAt}
-                onChange={(e) =>
-                  patchForm('registrationOpensAt', e.target.value)
-                }
-              />
-            </div>
-            <div data-event-field="registrationClosesAt">
-              <TextFormField
-                label="Registration closes"
-                type="datetime-local"
-                required
-                value={form.registrationClosesAt}
-                error={fieldErrors.registrationClosesAt}
-                onChange={(e) =>
-                  patchForm('registrationClosesAt', e.target.value)
-                }
-              />
-            </div>
-            <div data-event-field="maxParticipants">
-              <TextFormField
-                label="Max participants"
-                type="number"
-                min={1}
-                required
-                value={form.maxParticipants}
-                error={fieldErrors.maxParticipants}
-                onChange={(e) => patchForm('maxParticipants', e.target.value)}
-              />
-            </div>
-            {selectedGame?.name === 'Chess' ? (
-              <>
-                <div data-event-field="boardCount">
-                  <TextFormField
-                    label="Chess boards"
-                    type="number"
-                    min={1}
-                    required
-                    value={form.boardCount}
-                    error={fieldErrors.boardCount}
-                    onChange={(e) => patchForm('boardCount', e.target.value)}
-                    hint={
-                      <p className="mt-1 text-xs text-ink/50">
-                        How many boards are available at the venue. Organizers can
-                        override when starting matchmaking.
-                      </p>
-                    }
-                  />
-                </div>
-                <div data-event-field="gamesPerPlayer">
-                  <TextFormField
-                    label="Games per player"
-                    type="number"
-                    min={1}
-                    value={form.gamesPerPlayer}
-                    error={fieldErrors.gamesPerPlayer}
-                    onChange={(e) =>
-                      patchForm('gamesPerPlayer', e.target.value)
-                    }
-                    hint={
-                      <p className="mt-1 text-xs text-ink/50">
-                        How many games each player must play (e.g. 3). Pairing
-                        sessions repeat as needed based on board count.
-                      </p>
-                    }
-                  />
-                </div>
-              </>
-            ) : null}
-            <div data-event-field="fee">
-              <TextFormField
-                label="Fee"
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.fee}
-                error={fieldErrors.fee}
-                onChange={(e) => patchForm('fee', e.target.value)}
-              />
-            </div>
-            <div data-event-field="state">
-              <SelectFormField
-                label="State (optional zone)"
-                value={form.state}
-                error={fieldErrors.state}
-                onChange={(e) => patchForm('state', e.target.value)}
-              >
-                <option value="">Nationwide</option>
-                {states.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </SelectFormField>
-            </div>
-            <div data-event-field="district">
-              <SelectFormField
-                label="District (optional zone)"
-                value={form.district}
-                error={fieldErrors.district}
-                disabled={!form.state}
-                onChange={(e) => patchForm('district', e.target.value)}
-              >
-                <option value="">
-                  {form.state ? 'Select district' : 'Nationwide'}
-                </option>
-                {districts.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </SelectFormField>
-            </div>
-            <div data-event-field="pointsReward">
-              <TextFormField
-                label="Win points"
-                type="number"
-                min={0}
-                value={form.pointsReward}
-                error={fieldErrors.pointsReward}
-                onChange={(e) => patchForm('pointsReward', e.target.value)}
-              />
-            </div>
-            <div data-event-field="lossPoints">
-              <TextFormField
-                label="Loss points"
-                type="number"
-                min={0}
-                value={form.lossPoints}
-                error={fieldErrors.lossPoints}
-                onChange={(e) => patchForm('lossPoints', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <FieldLabel>Eligible genders (empty = all)</FieldLabel>
-            <div className="mt-1 flex flex-wrap gap-4">
-              {EVENT_GENDERS.map((g) => (
-                <CheckboxField
-                  key={g}
-                  label={g.replaceAll('_', ' ')}
-                  checked={form.genders.includes(g)}
-                  onChange={() => toggleGender(g)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div data-event-field="schoolIds">
-            <FieldLabel>
-              Target schools (optional — empty = all eligible schools)
-            </FieldLabel>
-            {fieldErrors.schoolIds ? (
-              <p className="mt-1 text-sm text-red-600" role="alert">
-                {fieldErrors.schoolIds}
-              </p>
-            ) : null}
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
-              {schools.length === 0 ? (
-                <p className="text-sm text-ink/50">No schools available</p>
-              ) : (
-                schools.map((school) => (
-                  <CheckboxField
-                    key={school.id}
-                    label={`${school.name} (${school.code})`}
-                    checked={form.schoolIds.includes(school.id)}
-                    onChange={() => toggleSchool(school.id)}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-
-          <div data-event-field="organizerIds">
-            <FieldLabel>Assign organisers (optional)</FieldLabel>
-            {fieldErrors.organizerIds ? (
-              <p className="mt-1 text-sm text-red-600" role="alert">
-                {fieldErrors.organizerIds}
-              </p>
-            ) : null}
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-lg border border-line bg-white p-3">
-              {organizers.length === 0 ? (
-                <p className="text-sm text-ink/50">
-                  No organisers yet — invite them from Organisers.
-                </p>
-              ) : (
-                organizers.map((org) => (
-                  <CheckboxField
-                    key={org.id}
-                    label={`${org.firstName} ${org.lastName} (${org.email ?? org.username})`}
-                    checked={form.organizerIds.includes(org.id)}
-                    onChange={() => toggleOrganizer(org.id)}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setModalOpen(false)}
-            >
-              Close
-            </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? 'Saving…' : 'Save draft'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
         open={!!confirmPublish}
         title="Publish event"
         onClose={() => setConfirmPublish(null)}
@@ -931,34 +355,34 @@ export function EventsPage() {
         ) : (
           <div className="max-h-80 space-y-2 overflow-y-auto">
             {resultsRows.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <PlayerIdentity
-                      username={row.user.username}
-                      firstName={row.user.firstName}
-                      lastName={row.user.lastName}
-                      totalPoints={row.user.totalPoints}
-                    />
-                  </div>
-                  <SelectInput
-                    className="!w-28 !py-1.5 text-sm"
-                    value={outcomes[row.userId] ?? 'LOSS'}
-                    onChange={(e) =>
-                      setOutcomes((prev) => ({
-                        ...prev,
-                        [row.userId]: e.target.value as MatchOutcome,
-                      }))
-                    }
-                  >
-                    <option value="WIN">Win</option>
-                    <option value="LOSS">Loss</option>
-                    <option value="DRAW">Draw</option>
-                  </SelectInput>
+              <div
+                key={row.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <PlayerIdentity
+                    username={row.user.username}
+                    firstName={row.user.firstName}
+                    lastName={row.user.lastName}
+                    totalPoints={row.user.totalPoints}
+                  />
                 </div>
-              ))}
+                <SelectInput
+                  className="!w-28 !py-1.5 text-sm"
+                  value={outcomes[row.userId] ?? 'LOSS'}
+                  onChange={(e) =>
+                    setOutcomes((prev) => ({
+                      ...prev,
+                      [row.userId]: e.target.value as MatchOutcome,
+                    }))
+                  }
+                >
+                  <option value="WIN">Win</option>
+                  <option value="LOSS">Loss</option>
+                  <option value="DRAW">Draw</option>
+                </SelectInput>
+              </div>
+            ))}
           </div>
         )}
         <div className="mt-5 flex justify-end gap-3">

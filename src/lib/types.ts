@@ -331,8 +331,8 @@ export interface EventPayload {
   schoolIds: string[]
   organizerIds: string[]
   fee: number
-  pointsReward: number
-  lossPoints: number
+  pointsReward?: number
+  lossPoints?: number
   boardCount?: number
   gamesPerPlayer?: number
   imageUrl?: string | null

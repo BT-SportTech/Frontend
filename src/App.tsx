@@ -7,6 +7,7 @@ import {
 import { AdminLayout } from './layouts/AdminLayout'
 import { OrganizerLayout } from './layouts/OrganizerLayout'
 import { DashboardPage } from './pages/admin/DashboardPage'
+import { EventCreatePage } from './pages/admin/EventCreatePage'
 import { EventDetailPage } from './pages/admin/EventDetailPage'
 import { EventsPage } from './pages/admin/EventsPage'
 import { OrganizersPage } from './pages/admin/OrganizersPage'
@@ -50,6 +51,7 @@ export default function App() {
               <Route path="schools" element={<SchoolsPage />} />
               <Route path="schools/:id" element={<SchoolDetailPage />} />
               <Route path="events" element={<EventsPage />} />
+              <Route path="events/new" element={<EventCreatePage />} />
               <Route path="events/:id" element={<EventDetailPage />} />
               <Route path="players" element={<PlayersPage />} />
               <Route path="players/:id" element={<PlayerDetailPage />} />

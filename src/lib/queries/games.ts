@@ -79,7 +79,7 @@ export function formToGamePayload(form: GameFormState): GamePayload {
     sidesPerMatch: Math.max(2, parseInt(form.sidesPerMatch, 10) || 2),
     playersPerSide: Math.max(1, parseInt(form.playersPerSide, 10) || 1),
     winPoints: Math.max(0, parseInt(form.winPoints, 10) || 0),
-    lossPoints: Math.max(0, parseInt(form.lossPoints, 10) || 0),
+    lossPoints: parseInt(form.lossPoints, 10) || 0,
     imageUrl: form.imageUrl.trim() || null,
   }
 }

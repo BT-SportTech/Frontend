@@ -43,8 +43,6 @@ export function buildEventFormSchema(isChess: boolean) {
       schoolIds: z.array(z.string()),
       organizerIds: z.array(z.string()),
       fee: nonNegativeIntString('Fee'),
-      pointsReward: nonNegativeIntString('Win points'),
-      lossPoints: nonNegativeIntString('Loss points'),
       boardCount: isChess
         ? positiveIntString('Board count')
         : z.string(),
