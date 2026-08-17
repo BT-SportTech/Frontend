@@ -1,5 +1,6 @@
 import type { SchoolFormState } from '../interfaces/school.interface'
 import { emptySchoolForm } from './schoolForm'
+import { normalizeSportsInstructorsForForm } from './sportsInstructors'
 
 const DRAFT_KEY = 'Sportech_school_form_draft'
 
@@ -37,6 +38,11 @@ export function hasMeaningfulSchoolDraft(
   const empty = emptySchoolForm()
   return (Object.keys(empty) as (keyof SchoolFormState)[]).some((key) => {
     if (key === 'logoFile' || key === 'type') return false
+    if (key === 'sportsInstructors') {
+      return form.sportsInstructors.some(
+        (member) => member.name.trim() || member.phone.trim(),
+      )
+    }
     const value = form[key]
     const baseline = empty[key]
     return value !== baseline
@@ -81,10 +87,21 @@ export function clearSchoolDraft(): void {
 export async function draftToFormState(
   draft: SchoolFormDraft,
 ): Promise<SchoolFormState> {
+  const legacyDraft = draft.form as SchoolFormDraft['form'] & {
+    sportsInstructor?: string
+  }
+
   const form: SchoolFormState = {
     ...emptySchoolForm(),
     ...draft.form,
     logoFile: null,
+    sportsInstructors: draft.form.sportsInstructors?.length
+      ? draft.form.sportsInstructors
+      : legacyDraft.sportsInstructor
+        ? normalizeSportsInstructorsForForm([
+            { name: legacyDraft.sportsInstructor },
+          ])
+        : emptySchoolForm().sportsInstructors,
   }
 
   if (draft.logoDraftDataUrl) {

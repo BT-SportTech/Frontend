@@ -286,10 +286,30 @@ function SchoolDetailContent({ school }: { school: School }) {
       </DetailSection>
 
       <DetailSection title="Faculty">
-        <DetailField
-          label="Sports instructor"
-          value={display(school.sportsInstructor)}
-        />
+        {school.sportsInstructors && school.sportsInstructors.length > 0 ? (
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/45">
+              Sports instructors
+            </dt>
+            <dd className="mt-2 space-y-2">
+              {school.sportsInstructors.map((instructor, index) => (
+                <div
+                  key={`${instructor.name ?? 'member'}-${instructor.phone ?? index}`}
+                  className="rounded-lg border border-line bg-accent/40 px-3 py-2.5 text-sm"
+                >
+                  <p className="font-semibold text-ink">
+                    {instructor.name?.trim() || '—'}
+                  </p>
+                  {instructor.phone?.trim() ? (
+                    <p className="mt-0.5 text-ink/70">{instructor.phone}</p>
+                  ) : null}
+                </div>
+              ))}
+            </dd>
+          </div>
+        ) : (
+          <DetailField label="Sports instructors" value="—" />
+        )}
       </DetailSection>
 
       <DetailSection title="Students">

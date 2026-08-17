@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Button,
@@ -463,6 +463,7 @@ export function ChessMatchmakingPanel({
     'boards',
   )
   const [subTabSeeded, setSubTabSeeded] = useState(false)
+  const finalizeInFlightRef = useRef(false)
 
   const statusQuery = useQuery({
     queryKey: chessMatchmakingKeys.status(event.id),
@@ -500,25 +501,6 @@ export function ChessMatchmakingPanel({
     )
   }
 
-  async function maybeAutoFinalizeTournament() {
-    const latest = await queryClient.fetchQuery({
-      queryKey: chessMatchmakingKeys.status(event.id),
-      queryFn: () => fetchChessMatchmakingStatus(event.id),
-    })
-    if (!latest || latest.matchmakingStatus === 'COMPLETED') return
-
-    const games = latest.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
-    const allDone = latest.playerProgress
-      .filter((p) => !p.withdrawn)
-      .every((p) => p.gamesCompleted >= games)
-    const batchReady =
-      !latest.activeBatch || latest.activeBatch.pendingMatches === 0
-
-    if (allDone && batchReady && !nextBatchMutation.isPending) {
-      nextBatchMutation.mutate()
-    }
-  }
-
   const startMutation = useMutation({
     mutationFn: () => {
       const boards = parseInt(boardOverride, 10)
@@ -547,12 +529,59 @@ export function ChessMatchmakingPanel({
       }
       await invalidateAll()
     },
-    onError: (err) => {
+    onError: async (err) => {
+      try {
+        const recovered = await fetchChessMatchmakingStatus(event.id)
+        if (recovered.matchmakingStatus === 'COMPLETED') {
+          applyCompletedStatus(recovered)
+          setActionError('')
+          await invalidateAll()
+          return
+        }
+      } catch {
+        /* fall through to error message */
+      }
       setActionError(
         err instanceof Error ? err.message : 'Failed to generate next batch',
       )
     },
   })
+
+  async function maybeAutoFinalizeTournament() {
+    if (finalizeInFlightRef.current) return
+
+    const latest = await queryClient.fetchQuery({
+      queryKey: chessMatchmakingKeys.status(event.id),
+      queryFn: () => fetchChessMatchmakingStatus(event.id),
+    })
+    if (!latest || latest.matchmakingStatus === 'COMPLETED') return
+
+    const games = latest.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
+    const allDone = latest.playerProgress
+      .filter((p) => !p.withdrawn)
+      .every((p) => p.gamesCompleted >= games)
+    const batchReady =
+      !latest.activeBatch || latest.activeBatch.pendingMatches === 0
+
+    if (!allDone || !batchReady || nextBatchMutation.isPending) return
+
+    finalizeInFlightRef.current = true
+    try {
+      await nextBatchMutation.mutateAsync()
+    } catch {
+      const recovered = await queryClient.fetchQuery({
+        queryKey: chessMatchmakingKeys.status(event.id),
+        queryFn: () => fetchChessMatchmakingStatus(event.id),
+      })
+      if (recovered?.matchmakingStatus === 'COMPLETED') {
+        applyCompletedStatus(recovered)
+        setActionError('')
+        await invalidateAll()
+      }
+    } finally {
+      finalizeInFlightRef.current = false
+    }
+  }
 
   const resultMutation = useMutation({
     mutationFn: ({

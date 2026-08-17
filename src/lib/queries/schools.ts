@@ -38,10 +38,23 @@ export type SaveSchoolInput = {
   form: SchoolFormState
 }
 
+export async function fetchSchoolsByName(
+  name: string,
+): Promise<SchoolListItem[]> {
+  const trimmed = name.trim()
+  if (!trimmed) return []
+
+  const result = await fetchSchools({ page: 1, limit: 50, search: trimmed })
+  const normalized = trimmed.toLowerCase()
+  return result.data.filter(
+    (school) => school.name.trim().toLowerCase() === normalized,
+  )
+}
+
 export async function saveSchool({
   editingId,
   form,
-}: SaveSchoolInput): Promise<void> {
+}: SaveSchoolInput): Promise<School> {
   let logoUrl = form.logoUrl.trim()
   if (form.logoFile) {
     const uploaded = await uploadSchoolLogo(form.logoFile)
@@ -54,10 +67,13 @@ export async function saveSchool({
   }
 
   if (editingId) {
-    await api(`/schools/${editingId}`, { method: 'PATCH', body: payload })
-  } else {
-    await api('/schools', { method: 'POST', body: payload })
+    return api<School>(`/schools/${editingId}`, {
+      method: 'PATCH',
+      body: payload,
+    })
   }
+
+  return api<School>('/schools', { method: 'POST', body: payload })
 }
 
 export async function deactivateSchool(id: string): Promise<void> {

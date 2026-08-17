@@ -1,5 +1,10 @@
 import type { School } from '../lib/types'
 import type { SchoolFormState } from '../interfaces/school.interface'
+import {
+  emptySportsInstructorRow,
+  normalizeSportsInstructorsForForm,
+  serializeSportsInstructors,
+} from './sportsInstructors'
 
 export function emptySchoolForm(): SchoolFormState {
   return {
@@ -30,7 +35,7 @@ export function emptySchoolForm(): SchoolFormState {
     sportsFacilities: '',
     hasSwimmingPool: false,
     hasIndoorSportsArena: false,
-    sportsInstructor: '',
+    sportsInstructors: [emptySportsInstructorRow()],
     totalStudents: '',
     boysCount: '',
     girlsCount: '',
@@ -107,7 +112,9 @@ export function schoolToForm(school: School): SchoolFormState {
     sportsFacilities: joinList(school.sportsFacilities),
     hasSwimmingPool: school.hasSwimmingPool ?? false,
     hasIndoorSportsArena: school.hasIndoorSportsArena ?? false,
-    sportsInstructor: school.sportsInstructor ?? '',
+    sportsInstructors: normalizeSportsInstructorsForForm(
+      school.sportsInstructors,
+    ),
     totalStudents: school.totalStudents?.toString() ?? '',
     boysCount: school.boysCount?.toString() ?? '',
     girlsCount: school.girlsCount?.toString() ?? '',
@@ -154,7 +161,7 @@ export function formToSchoolPayload(form: SchoolFormState) {
     sportsFacilities: parseList(form.sportsFacilities),
     hasSwimmingPool: form.hasSwimmingPool,
     hasIndoorSportsArena: form.hasIndoorSportsArena,
-    sportsInstructor: optionalString(form.sportsInstructor),
+    sportsInstructors: serializeSportsInstructors(form.sportsInstructors),
     totalStudents: parseOptionalInt(form.totalStudents),
     boysCount: parseOptionalInt(form.boysCount),
     girlsCount: parseOptionalInt(form.girlsCount),
