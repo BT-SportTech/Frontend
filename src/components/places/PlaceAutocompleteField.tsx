@@ -151,7 +151,9 @@ export function PlaceAutocompleteField({
     }
   }
 
-  const showList = open && (loading || resolving || searchError || suggestions.length > 0)
+  const showList =
+    open &&
+    (loading || resolving || Boolean(searchError) || suggestions.length > 0)
 
   return (
     <FormField
