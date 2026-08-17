@@ -16,11 +16,13 @@ import {
 } from '../ui'
 import { FormSection } from './FormSection'
 import { LogoUploadField } from './LogoUploadField'
+import { SportsInstructorsField } from './SportsInstructorsField'
 
 interface SchoolFormProps {
   step: number
   form: SchoolFormState
   editing: boolean
+  nameReadOnly?: boolean
   onChange: <K extends keyof SchoolFormState>(
     key: K,
     value: SchoolFormState[K],
@@ -37,14 +39,20 @@ function Field({
   children: ReactNode
 }) {
   return (
-    <div className={className}>
+    <div className={`w-full min-w-0 ${className}`}>
       <FieldLabel>{label}</FieldLabel>
       {children}
     </div>
   )
 }
 
-export function SchoolForm({ step, form, editing, onChange }: SchoolFormProps) {
+export function SchoolForm({
+  step,
+  form,
+  editing,
+  nameReadOnly = false,
+  onChange,
+}: SchoolFormProps) {
   switch (step) {
     case 0:
       return (
@@ -55,6 +63,8 @@ export function SchoolForm({ step, form, editing, onChange }: SchoolFormProps) {
               value={form.name}
               onChange={(e) => onChange('name', e.target.value)}
               placeholder="Enter school name"
+              readOnly={nameReadOnly}
+              disabled={nameReadOnly}
             />
           </Field>
           <Field label="School code / registration number">
@@ -106,7 +116,7 @@ export function SchoolForm({ step, form, editing, onChange }: SchoolFormProps) {
               placeholder="Principal name"
             />
           </Field>
-          <Field label="Chairman / correspondent name">
+          <Field label="Chairman / correspondent name" className="sm:col-span-2">
             <TextInput
               value={form.chairmanName}
               onChange={(e) => onChange('chairmanName', e.target.value)}
@@ -299,13 +309,14 @@ export function SchoolForm({ step, form, editing, onChange }: SchoolFormProps) {
     case 3:
       return (
         <FormSection title="Faculty information">
-          <Field label="Sports instructor" className="sm:col-span-2">
-            <TextInput
-              value={form.sportsInstructor}
-              onChange={(e) => onChange('sportsInstructor', e.target.value)}
-              placeholder="Coach name"
+          <div className="sm:col-span-2">
+            <SportsInstructorsField
+              value={form.sportsInstructors}
+              onChange={(sportsInstructors) =>
+                onChange('sportsInstructors', sportsInstructors)
+              }
             />
-          </Field>
+          </div>
         </FormSection>
       )
 

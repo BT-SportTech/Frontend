@@ -11,6 +11,26 @@ import {
   setRegistrationAttendance,
 } from '../../lib/queries/organizerEvents'
 import { displayName } from '../../lib/displayName'
+import type { EventStatus } from '../../lib/types'
+
+const STATUS_STYLES: Record<EventStatus, string> = {
+  DRAFT: 'bg-ink/10 text-ink/70',
+  PUBLISHED: 'bg-emerald-100 text-emerald-800',
+  COMPLETED: 'bg-sky-100 text-sky-800',
+  CANCELLED: 'bg-red-100 text-red-700',
+}
+
+const STATUS_LABELS: Record<EventStatus, string> = {
+  DRAFT: 'Draft',
+  PUBLISHED: 'Published',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+}
+
+function formatFee(fee: number) {
+  if (fee === 0) return 'Free'
+  return `₹${fee}`
+}
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -109,6 +129,10 @@ export function OrganizerEventDetailPage() {
 
   const event = eventQuery.data
   const regs = regsQuery.data?.data ?? []
+  const isPastEvent =
+    event?.status === 'COMPLETED' || event?.status === 'CANCELLED'
+  const backLink = isPastEvent ? '/organizer/history' : '/organizer'
+  const backLabel = isPastEvent ? 'Event history' : 'My events'
   const isChess =
     event?.sport?.toLowerCase() === 'chess' ||
     event?.game?.name?.toLowerCase() === 'chess'
@@ -181,10 +205,10 @@ export function OrganizerEventDetailPage() {
     <div className="space-y-5">
       <div>
         <Link
-          to="/organizer"
+          to={backLink}
           className="text-sm font-semibold text-primary transition hover:text-primary-hover"
         >
-          ← My events
+          ← {backLabel}
         </Link>
       </div>
 
@@ -216,18 +240,88 @@ export function OrganizerEventDetailPage() {
               </div>
               <span
                 className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
-                  windowOpen
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-ink/8 text-ink/55'
+                  isPastEvent
+                    ? STATUS_STYLES[event.status]
+                    : windowOpen
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-ink/8 text-ink/55'
                 }`}
               >
-                {windowOpen
-                  ? 'Check-in open'
-                  : opensAt
-                    ? `Opens ${formatWhen(opensAt)}`
-                    : 'Closed'}
+                {isPastEvent
+                  ? STATUS_LABELS[event.status]
+                  : windowOpen
+                    ? 'Check-in open'
+                    : opensAt
+                      ? `Opens ${formatWhen(opensAt)}`
+                      : 'Closed'}
               </span>
             </div>
+
+            {isPastEvent ? (
+              <dl className="mt-5 grid gap-4 border-t border-line/60 pt-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                {event.description ? (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                      Description
+                    </dt>
+                    <dd className="mt-1 text-ink/70">{event.description}</dd>
+                  </div>
+                ) : null}
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                    Entry fee
+                  </dt>
+                  <dd className="mt-1 font-medium text-ink/70">
+                    {formatFee(event.fee)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                    Age category
+                  </dt>
+                  <dd className="mt-1 font-medium text-ink/70">
+                    {event.ageCategory}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                    Registrations
+                  </dt>
+                  <dd className="mt-1 font-medium text-ink/70">
+                    {event.registeredCount}/{event.maxParticipants} players
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                    Registration window
+                  </dt>
+                  <dd className="mt-1 font-medium text-ink/70">
+                    {formatWhen(event.registrationOpensAt)} –{' '}
+                    {formatWhen(event.registrationClosesAt)}
+                  </dd>
+                </div>
+                {event.endsAt ? (
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                      Ended
+                    </dt>
+                    <dd className="mt-1 font-medium text-ink/70">
+                      {formatWhen(event.endsAt)}
+                    </dd>
+                  </div>
+                ) : null}
+                {event.schools.length > 0 ? (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                      Schools
+                    </dt>
+                    <dd className="mt-1 font-medium text-ink/70">
+                      {event.schools.map((s) => s.name).join(', ')}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
 
             {isChess ? (
               <div className="mt-5 flex items-center gap-0 overflow-x-auto">
@@ -305,15 +399,17 @@ export function OrganizerEventDetailPage() {
               </div>
             </div>
             <p className="mt-0.5 text-sm text-ink/50">
-              Tap a player to mark them present
-              {matchmakingStarted && isChess
+              {isPastEvent
+                ? 'Final attendance record for this event'
+                : 'Tap a player to mark them present'}
+              {matchmakingStarted && isChess && !isPastEvent
                 ? ' · Locked after pairing starts'
                 : ''}
             </p>
           </div>
 
           <div className="border-t border-line/60 px-5 pt-3 sm:px-6">
-            {!windowOpen ? (
+            {!windowOpen && !isPastEvent ? (
               <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
                 Check-in opens 30 minutes before start
                 {opensAt ? ` (${formatWhen(opensAt)})` : ''}.
@@ -377,9 +473,10 @@ export function OrganizerEventDetailPage() {
                 const present = Boolean(row.attendedAt)
                 const withdrawn = Boolean(row.withdrawnAt)
                 const busy = pendingIds.has(row.id)
-                const lockAttendance = isChess && matchmakingStarted
+                const lockAttendance =
+                  isPastEvent || (isChess && matchmakingStarted)
                 const canToggle =
-                  windowOpen && !lockAttendance && !withdrawn
+                  !isPastEvent && windowOpen && !lockAttendance && !withdrawn
 
                 return (
                   <button
@@ -461,6 +558,8 @@ export function OrganizerEventDetailPage() {
                         'Withdrawn'
                       ) : present ? (
                         'Present'
+                      ) : isPastEvent ? (
+                        'Did not attend'
                       ) : (
                         'Tap to check in'
                       )}

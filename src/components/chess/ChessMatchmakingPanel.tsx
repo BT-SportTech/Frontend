@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Button,
@@ -145,7 +145,7 @@ function BoardCard({
           </span>
         ) : (
           <span className="text-xs font-semibold text-amber-700">
-            Tap a player to set the winner
+            Tap White, Black, or Draw
           </span>
         )}
       </div>
@@ -179,20 +179,34 @@ function BoardCard({
           ) : null}
         </button>
 
-        <div className="flex flex-col items-center justify-center gap-2">
-          <span className="text-xs font-bold text-ink/25">VS</span>
+        <div className="flex flex-col items-center justify-center self-center">
           {!done ? (
             <button
               type="button"
               disabled={busy}
               onClick={() => onResult('DRAW')}
-              className="rounded-lg px-2 py-1 text-[11px] font-semibold text-ink/45 transition hover:bg-ink/5 hover:text-ink"
+              className="rounded-xl border border-line bg-white px-3 py-3 text-center transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98] disabled:cursor-default"
             >
-              Draw
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
+                Draw
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-ink">½–½</p>
             </button>
           ) : isDraw ? (
-            <span className="text-[11px] font-bold text-ink/50">½–½</span>
-          ) : null}
+            <div className="rounded-xl border border-emerald-400 bg-emerald-50 px-3 py-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
+                Draw
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-ink">½–½</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-transparent px-3 py-3 text-center opacity-50">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
+                Draw
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-ink/50">½–½</p>
+            </div>
+          )}
         </div>
 
         <button
@@ -449,6 +463,7 @@ export function ChessMatchmakingPanel({
     'boards',
   )
   const [subTabSeeded, setSubTabSeeded] = useState(false)
+  const finalizeInFlightRef = useRef(false)
 
   const statusQuery = useQuery({
     queryKey: chessMatchmakingKeys.status(event.id),
@@ -486,25 +501,6 @@ export function ChessMatchmakingPanel({
     )
   }
 
-  async function maybeAutoFinalizeTournament() {
-    const latest = await queryClient.fetchQuery({
-      queryKey: chessMatchmakingKeys.status(event.id),
-      queryFn: () => fetchChessMatchmakingStatus(event.id),
-    })
-    if (!latest || latest.matchmakingStatus === 'COMPLETED') return
-
-    const games = latest.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
-    const allDone = latest.playerProgress
-      .filter((p) => !p.withdrawn)
-      .every((p) => p.gamesCompleted >= games)
-    const batchReady =
-      !latest.activeBatch || latest.activeBatch.pendingMatches === 0
-
-    if (allDone && batchReady && !nextBatchMutation.isPending) {
-      nextBatchMutation.mutate()
-    }
-  }
-
   const startMutation = useMutation({
     mutationFn: () => {
       const boards = parseInt(boardOverride, 10)
@@ -533,12 +529,59 @@ export function ChessMatchmakingPanel({
       }
       await invalidateAll()
     },
-    onError: (err) => {
+    onError: async (err) => {
+      try {
+        const recovered = await fetchChessMatchmakingStatus(event.id)
+        if (recovered.matchmakingStatus === 'COMPLETED') {
+          applyCompletedStatus(recovered)
+          setActionError('')
+          await invalidateAll()
+          return
+        }
+      } catch {
+        /* fall through to error message */
+      }
       setActionError(
         err instanceof Error ? err.message : 'Failed to generate next batch',
       )
     },
   })
+
+  async function maybeAutoFinalizeTournament() {
+    if (finalizeInFlightRef.current) return
+
+    const latest = await queryClient.fetchQuery({
+      queryKey: chessMatchmakingKeys.status(event.id),
+      queryFn: () => fetchChessMatchmakingStatus(event.id),
+    })
+    if (!latest || latest.matchmakingStatus === 'COMPLETED') return
+
+    const games = latest.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
+    const allDone = latest.playerProgress
+      .filter((p) => !p.withdrawn)
+      .every((p) => p.gamesCompleted >= games)
+    const batchReady =
+      !latest.activeBatch || latest.activeBatch.pendingMatches === 0
+
+    if (!allDone || !batchReady || nextBatchMutation.isPending) return
+
+    finalizeInFlightRef.current = true
+    try {
+      await nextBatchMutation.mutateAsync()
+    } catch {
+      const recovered = await queryClient.fetchQuery({
+        queryKey: chessMatchmakingKeys.status(event.id),
+        queryFn: () => fetchChessMatchmakingStatus(event.id),
+      })
+      if (recovered?.matchmakingStatus === 'COMPLETED') {
+        applyCompletedStatus(recovered)
+        setActionError('')
+        await invalidateAll()
+      }
+    } finally {
+      finalizeInFlightRef.current = false
+    }
+  }
 
   const resultMutation = useMutation({
     mutationFn: ({

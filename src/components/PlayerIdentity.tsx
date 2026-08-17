@@ -24,7 +24,7 @@ export function PlayerIdentity({
   const name =
     displayName(firstName, lastName).trim() || username || 'Unknown player'
   const rank = rankTier ?? rankTierFromPoints(totalPoints)
-  const code = username.trim()
+  const code = username.trim().toUpperCase()
 
   if (!compact) {
     return (

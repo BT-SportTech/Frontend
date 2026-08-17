@@ -5,6 +5,14 @@ export type RankTier =
   | 'Elite'
   | 'Legend'
 
+export const RANK_TIERS: RankTier[] = [
+  'Rookie',
+  'Intermediate',
+  'Pro',
+  'Elite',
+  'Legend',
+]
+
 export function rankTierFromPoints(points: number): RankTier {
   if (points >= 1000) return 'Legend'
   if (points >= 600) return 'Elite'

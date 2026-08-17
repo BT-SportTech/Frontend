@@ -55,7 +55,7 @@ export function LogoUploadField({
   const displayError = error ?? localError
 
   return (
-    <div>
+    <div className="w-full">
       <FieldLabel>School logo</FieldLabel>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">

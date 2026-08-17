@@ -1,4 +1,7 @@
 import type { SchoolType } from '../lib/types'
+import type { SportsInstructorFormRow } from '../lib/sportsInstructors'
+
+export type { SportsInstructorMember } from '../lib/types'
 
 export interface SchoolFormState {
   name: string
@@ -28,7 +31,7 @@ export interface SchoolFormState {
   sportsFacilities: string
   hasSwimmingPool: boolean
   hasIndoorSportsArena: boolean
-  sportsInstructor: string
+  sportsInstructors: SportsInstructorFormRow[]
   totalStudents: string
   boysCount: string
   girlsCount: string

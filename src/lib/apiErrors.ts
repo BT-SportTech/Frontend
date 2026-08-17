@@ -36,8 +36,6 @@ const EVENT_FIELD_KEYS = new Set<string>([
   'district',
   'ageCategory',
   'fee',
-  'pointsReward',
-  'lossPoints',
   'boardCount',
   'gamesPerPlayer',
   'schoolIds',
@@ -76,8 +74,6 @@ function mapMessageToField(message: string): keyof EventFormState | null {
   if (lower.includes('organizer ids')) return 'organizerIds'
   if (lower.includes('maxparticipants')) return 'maxParticipants'
   if (lower.startsWith('fee ')) return 'fee'
-  if (lower.includes('pointsreward')) return 'pointsReward'
-  if (lower.includes('losspoints')) return 'lossPoints'
 
   const propertyPrefix = /^([a-zA-Z]+)\s/.exec(message)
   if (propertyPrefix && isEventFieldKey(propertyPrefix[1])) {

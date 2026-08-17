@@ -1,53 +1,37 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { resolveAssetUrl } from '../../lib/api'
-import {
-  emptySchoolForm,
-  schoolToForm,
-} from '../../lib/schoolForm'
-import {
-  clearSchoolDraft,
-  draftToFormState,
-  hasMeaningfulSchoolDraft,
-  readSchoolDraft,
-  writeSchoolDraft,
-} from '../../lib/schoolDraft'
-import type { SchoolFormState } from '../../interfaces/school.interface'
 import type { SchoolListItem } from '../../lib/types'
 import { Pagination } from '../../components/Pagination'
-import {
-  SCHOOL_FORM_STEPS,
-  SchoolFormStepper,
-} from '../../components/schools'
 import { Button, GlassPanel } from '../../components/ui'
 import { DraftToast } from '../../components/ui/DraftToast'
 import { Modal } from '../../components/ui/Modal'
 import { dashboardKeys } from '../../lib/queries/dashboard'
 import {
   deactivateSchool,
-  fetchSchool,
   fetchSchools,
-  saveSchool,
   schoolsKeys,
 } from '../../lib/queries/schools'
+import {
+  clearSchoolDraft,
+  hasMeaningfulSchoolDraft,
+  readSchoolDraft,
+} from '../../lib/schoolDraft'
+import { emptySchoolForm } from '../../lib/schoolForm'
 import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
 import { toast } from '../../stores/useToastStore'
 
 export function SchoolsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const search = useAdminSearchStore((state) => state.schools)
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<SchoolFormState>(emptySchoolForm())
-  const [formStep, setFormStep] = useState(0)
-  const [formSessionKey, setFormSessionKey] = useState('new')
   const [showDraftToast, setShowDraftToast] = useState(false)
   const [deactivateTarget, setDeactivateTarget] =
     useState<SchoolListItem | null>(null)
-  const skipDraftSaveRef = useRef(false)
 
   if (search !== prevSearch) {
     setPrevSearch(search)
@@ -76,22 +60,6 @@ export function SchoolsPage() {
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
     ])
   }, [queryClient])
-
-  const saveMutation = useMutation({
-    mutationFn: saveSchool,
-    onSuccess: async (_data, variables) => {
-      clearSchoolDraft()
-      setShowDraftToast(false)
-      setModalOpen(false)
-      toast.success(
-        variables.editingId ? 'School updated.' : 'School created.',
-      )
-      await invalidateSchoolQueries()
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Save failed')
-    },
-  })
 
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => deactivateSchool(id),
@@ -127,94 +95,15 @@ export function SchoolsPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!modalOpen || skipDraftSaveRef.current) return
-    if (!hasMeaningfulSchoolDraft(form, formStep) && !form.logoFile) return
-
-    const handle = window.setTimeout(() => {
-      void writeSchoolDraft({
-        editingId,
-        step: formStep,
-        form,
-      })
-    }, 350)
-
-    return () => window.clearTimeout(handle)
-  }, [modalOpen, editingId, form, formStep])
-
-  const persistDraftAndClose = useCallback(() => {
-    if (hasMeaningfulSchoolDraft(form, formStep) || form.logoFile) {
-      void writeSchoolDraft({
-        editingId,
-        step: formStep,
-        form,
-      }).then(() => setShowDraftToast(true))
-    }
-    setModalOpen(false)
-  }, [editingId, form, formStep])
-
-  function openCreate() {
-    skipDraftSaveRef.current = true
-    setEditingId(null)
-    setForm(emptySchoolForm())
-    setFormStep(0)
-    setFormSessionKey(`new-${Date.now()}`)
-    setModalOpen(true)
-    window.setTimeout(() => {
-      skipDraftSaveRef.current = false
-    }, 0)
-  }
-
-  async function openEdit(id: string) {
-    try {
-      const school = await queryClient.fetchQuery({
-        queryKey: schoolsKeys.detail(id),
-        queryFn: () => fetchSchool(id),
-      })
-      skipDraftSaveRef.current = true
-      setEditingId(id)
-      setForm(schoolToForm(school))
-      setFormStep(0)
-      setFormSessionKey(`edit-${id}-${Date.now()}`)
-      setModalOpen(true)
-      window.setTimeout(() => {
-        skipDraftSaveRef.current = false
-      }, 0)
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to load school',
-      )
-    }
-  }
-
-  async function resumeDraft() {
+  function resumeDraft() {
     const draft = readSchoolDraft()
-    if (!draft) {
-      setShowDraftToast(false)
+    setShowDraftToast(false)
+    if (!draft) return
+    if (draft.editingId) {
+      navigate(`/admin/schools/${draft.editingId}/edit`)
       return
     }
-
-    try {
-      skipDraftSaveRef.current = true
-      const restored = await draftToFormState(draft)
-      const safeStep = Math.min(
-        Math.max(draft.step, 0),
-        SCHOOL_FORM_STEPS.length - 1,
-      )
-      setEditingId(draft.editingId)
-      setForm(restored)
-      setFormStep(safeStep)
-      setFormSessionKey(
-        `draft-${draft.editingId ?? 'new'}-${draft.updatedAt}`,
-      )
-      setShowDraftToast(false)
-      setModalOpen(true)
-      window.setTimeout(() => {
-        skipDraftSaveRef.current = false
-      }, 0)
-    } catch {
-      toast.error('Unable to restore the saved draft')
-    }
+    navigate('/admin/schools/new')
   }
 
   function dismissDraft() {
@@ -222,24 +111,11 @@ export function SchoolsPage() {
     setShowDraftToast(false)
   }
 
-  function onSave(e: FormEvent) {
-    e.preventDefault()
-    saveMutation.mutate({ editingId, form })
-  }
-
   function confirmDeactivate() {
     if (!deactivateTarget) return
     deactivateMutation.mutate(deactivateTarget.id)
   }
 
-  function setField<K extends keyof SchoolFormState>(
-    key: K,
-    value: SchoolFormState[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const saving = saveMutation.isPending
   const deactivating = deactivateMutation.isPending
 
   return (
@@ -253,7 +129,9 @@ export function SchoolsPage() {
             Register and manage school profiles
           </p>
         </div>
-        <Button onClick={openCreate}>Add school</Button>
+        <Button onClick={() => navigate('/admin/schools/new')}>
+          Add school
+        </Button>
       </div>
 
       <GlassPanel strong className="overflow-hidden">
@@ -386,7 +264,7 @@ export function SchoolsPage() {
                           className="!h-9 !w-9 !px-0 !py-0"
                           title="Edit"
                           aria-label="Edit school"
-                          onClick={() => void openEdit(s.id)}
+                          onClick={() => navigate(`/admin/schools/${s.id}/edit`)}
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -447,25 +325,6 @@ export function SchoolsPage() {
       </GlassPanel>
 
       <Modal
-        open={modalOpen}
-        title={editingId ? 'Edit school' : 'Add school'}
-        onClose={persistDraftAndClose}
-        className="max-w-3xl"
-      >
-        <SchoolFormStepper
-          form={form}
-          editing={Boolean(editingId)}
-          saving={saving}
-          resetKey={formSessionKey}
-          initialStep={formStep}
-          onStepChange={setFormStep}
-          onChange={setField}
-          onSubmit={onSave}
-          onCancel={persistDraftAndClose}
-        />
-      </Modal>
-
-      <Modal
         open={Boolean(deactivateTarget)}
         title="Deactivate school"
         onClose={() => {
@@ -509,8 +368,8 @@ export function SchoolsPage() {
       </Modal>
 
       <DraftToast
-        open={showDraftToast && !modalOpen}
-        onResume={() => void resumeDraft()}
+        open={showDraftToast}
+        onResume={resumeDraft}
         onDismiss={dismissDraft}
       />
     </div>

@@ -7,17 +7,21 @@ import {
 import { AdminLayout } from './layouts/AdminLayout'
 import { OrganizerLayout } from './layouts/OrganizerLayout'
 import { DashboardPage } from './pages/admin/DashboardPage'
+import { EventCreatePage } from './pages/admin/EventCreatePage'
 import { EventDetailPage } from './pages/admin/EventDetailPage'
 import { EventsPage } from './pages/admin/EventsPage'
 import { OrganizersPage } from './pages/admin/OrganizersPage'
 import { PlayerDetailPage } from './pages/admin/PlayerDetailPage'
 import { PlayersPage } from './pages/admin/PlayersPage'
 import { SchoolDetailPage } from './pages/admin/SchoolDetailPage'
+import { SchoolCreatePage } from './pages/admin/SchoolCreatePage'
+import { SchoolEditPage } from './pages/admin/SchoolEditPage'
 import { SchoolsPage } from './pages/admin/SchoolsPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { LoginPage } from './pages/LoginPage'
 import { OrganizerEventDetailPage } from './pages/organizer/OrganizerEventDetailPage'
 import { OrganizerEventsPage } from './pages/organizer/OrganizerEventsPage'
+import { OrganizerHistoryPage } from './pages/organizer/OrganizerHistoryPage'
 import {
   selectIsAdmin,
   selectIsAuthenticated,
@@ -48,8 +52,11 @@ export default function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="schools" element={<SchoolsPage />} />
+              <Route path="schools/new" element={<SchoolCreatePage />} />
+              <Route path="schools/:id/edit" element={<SchoolEditPage />} />
               <Route path="schools/:id" element={<SchoolDetailPage />} />
               <Route path="events" element={<EventsPage />} />
+              <Route path="events/new" element={<EventCreatePage />} />
               <Route path="events/:id" element={<EventDetailPage />} />
               <Route path="players" element={<PlayersPage />} />
               <Route path="players/:id" element={<PlayerDetailPage />} />
@@ -60,6 +67,7 @@ export default function App() {
           <Route element={<OrganizerRoute />}>
             <Route path="/organizer" element={<OrganizerLayout />}>
               <Route index element={<OrganizerEventsPage />} />
+              <Route path="history" element={<OrganizerHistoryPage />} />
               <Route path="events/:id" element={<OrganizerEventDetailPage />} />
             </Route>
           </Route>

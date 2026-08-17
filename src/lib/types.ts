@@ -9,6 +9,11 @@ export type SchoolType =
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY'
 
+export interface SportsInstructorMember {
+  name?: string | null
+  phone?: string | null
+}
+
 export interface AuthUser {
   id: string
   firstName: string
@@ -73,7 +78,7 @@ export interface School extends SchoolListItem {
   sportsFacilities: string[]
   hasSwimmingPool: boolean
   hasIndoorSportsArena: boolean
-  sportsInstructor?: string | null
+  sportsInstructors?: SportsInstructorMember[] | null
   totalStudents?: number | null
   boysCount?: number | null
   girlsCount?: number | null
@@ -331,8 +336,8 @@ export interface EventPayload {
   schoolIds: string[]
   organizerIds: string[]
   fee: number
-  pointsReward: number
-  lossPoints: number
+  pointsReward?: number
+  lossPoints?: number
   boardCount?: number
   gamesPerPlayer?: number
   imageUrl?: string | null

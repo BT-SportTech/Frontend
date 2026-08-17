@@ -115,8 +115,83 @@ export function getCities(state: string, district: string): string[] {
   return cities ? [...cities].sort() : []
 }
 
+/** All cities across districts for a state (deduped). */
+export function getCitiesInState(state: string): string[] {
+  const districts = INDIA_LOCATIONS[state]
+  if (!districts) return []
+  const set = new Set<string>()
+  for (const cities of Object.values(districts)) {
+    for (const city of cities) set.add(city)
+  }
+  return [...set].sort()
+}
+
 export function withCurrentOption(options: string[], current: string): string[] {
   if (!current.trim()) return options
   if (options.includes(current)) return options
   return [current, ...options]
 }
+
+function normalizeLocationKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Best-effort match of a Google Places state name to INDIA_LOCATIONS. */
+export function matchStateOption(googleState?: string | null): string {
+  const raw = googleState?.trim()
+  if (!raw) return ''
+  const states = getStates()
+  const exact = states.find(
+    (s) => s.toLowerCase() === raw.toLowerCase(),
+  )
+  if (exact) return exact
+
+  const needle = normalizeLocationKey(raw)
+  const contains = states.find((s) => {
+    const key = normalizeLocationKey(s)
+    return key.includes(needle) || needle.includes(key)
+  })
+  return contains ?? ''
+}
+
+/**
+ * Match Google district/city to a catalog district under the given state.
+ * Falls back to city name when district is missing or mismatched.
+ */
+export function matchDistrictOption(
+  state: string,
+  googleDistrict?: string | null,
+  googleCity?: string | null,
+): string {
+  if (!state.trim()) return ''
+  const districts = getDistricts(state)
+  if (districts.length === 0) return ''
+
+  const candidates = [googleDistrict, googleCity]
+    .map((v) => v?.trim())
+    .filter((v): v is string => Boolean(v))
+
+  for (const raw of candidates) {
+    const exact = districts.find(
+      (d) => d.toLowerCase() === raw.toLowerCase(),
+    )
+    if (exact) return exact
+  }
+
+  for (const raw of candidates) {
+    const needle = normalizeLocationKey(raw)
+    const fuzzy = districts.find((d) => {
+      const key = normalizeLocationKey(d)
+      return key.includes(needle) || needle.includes(key)
+    })
+    if (fuzzy) return fuzzy
+  }
+
+  return ''
+}
+
