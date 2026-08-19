@@ -123,7 +123,7 @@ function ViewModeToggle({
 }) {
   return (
     <div
-      className="inline-flex rounded-xl border border-line/70 bg-white/60 p-1"
+      className="inline-flex w-full rounded-xl border border-line/70 bg-white/60 p-1 sm:w-auto"
       role="group"
       aria-label="Event display mode"
     >
@@ -216,7 +216,7 @@ export function OrganizerEventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
             My events

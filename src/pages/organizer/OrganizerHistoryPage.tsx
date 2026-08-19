@@ -96,7 +96,7 @@ function HistoryListRow({ event }: { event: OrganizerEventSummary }) {
   return (
     <div className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-ink">{event.name}</h2>
-      <dl className="mt-3 grid gap-2 text-sm text-ink/55 sm:grid-cols-3">
+      <dl className="mt-3 grid grid-cols-1 gap-2 text-sm text-ink/55 sm:grid-cols-2 md:grid-cols-3">
         {location ? (
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">

@@ -10,6 +10,7 @@ import {
   setRegistrationAttendance,
 } from '../../lib/queries/organizerEvents'
 import { displayName } from '../../lib/displayName'
+import { formatUniqueCode } from '../../lib/uniqueCode'
 import type { EventStatus } from '../../lib/types'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -330,7 +331,7 @@ export function OrganizerEventDetailPage() {
             ) : null}
 
             {isChess ? (
-              <div className="mt-5 flex items-center gap-0 overflow-x-auto">
+              <div className="mt-5 flex items-center gap-0 overflow-x-auto pb-1">
                 {[
                   { n: 1, label: 'Check in' },
                   { n: 2, label: `${event.gamesPerPlayer ?? 3} games each` },
@@ -425,12 +426,12 @@ export function OrganizerEventDetailPage() {
             ) : null}
 
             {canLoadRegs && regs.length > 4 ? (
-              <div className="mb-3 flex flex-wrap gap-2">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                 <TextInput
                   placeholder="Search players…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="max-w-xs"
+                  className="w-full sm:max-w-xs"
                 />
                 <div className="flex rounded-lg border border-line bg-white p-0.5">
                   {(
@@ -542,6 +543,12 @@ export function OrganizerEventDetailPage() {
                             row.user.firstName,
                             row.user.lastName,
                           )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-ink/55">
+                          <span className="text-ink/45">Unique Code:</span>{' '}
+                          <span className="font-mono font-semibold tracking-wide text-ink/70">
+                            {formatUniqueCode(row.user.username)}
+                          </span>
                         </p>
                       </div>
                     </div>

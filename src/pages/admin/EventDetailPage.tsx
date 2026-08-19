@@ -333,58 +333,117 @@ export function EventDetailPage() {
                 No players have registered for this event yet.
               </p>
             ) : (
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[520px] text-left text-sm text-ink">
-                  <thead className="border-b border-line bg-accent/40 text-ink/80">
-                    <tr>
-                      <th className="px-3 py-2.5 font-semibold">#</th>
-                      <th className="px-3 py-2.5 font-semibold">Player Name</th>
-                      <th className="px-3 py-2.5 font-semibold">Unique Code</th>
-                      <th className="px-3 py-2.5 font-semibold">Rank</th>
-                      <th className="px-3 py-2.5 font-semibold">Email</th>
-                      <th className="px-3 py-2.5 font-semibold">Attendance</th>
-                      <th className="px-3 py-2.5 font-semibold">Registered</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registrations.map((row, index) => {
-                      const fullName =
-                        `${row.user.firstName} ${row.user.lastName}`.trim() ||
-                        row.user.username
-                      const rank = rankTierFromPoints(row.user.totalPoints ?? 0)
-                      return (
-                        <tr key={row.id} className="border-b border-line/50">
-                          <td className="px-3 py-2.5 tabular-nums text-ink/50">
-                            {index + 1}
-                          </td>
-                          <td className="px-3 py-2.5 font-semibold">
-                            {fullName}
-                          </td>
-                          <td className="px-3 py-2.5 text-ink/80">
-                            {formatUniqueCode(row.user.username)}
-                          </td>
-                          <td className="px-3 py-2.5 text-ink/80">{rank}</td>
-                          <td className="px-3 py-2.5 text-ink/80">
-                            {row.user.email ?? '—'}
-                          </td>
-                          <td className="px-3 py-2.5 text-ink/80">
-                            {row.attendedAt ? (
-                              <span className="font-semibold text-emerald-700">
-                                Present
-                              </span>
-                            ) : (
-                              <span className="text-ink/45">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-ink/80">
-                            {formatWhen(row.registeredAt)}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="mt-4 hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[520px] text-left text-sm text-ink">
+                    <thead className="border-b border-line bg-accent/40 text-ink/80">
+                      <tr>
+                        <th className="px-3 py-2.5 font-semibold">#</th>
+                        <th className="px-3 py-2.5 font-semibold">Player Name</th>
+                        <th className="px-3 py-2.5 font-semibold">Unique Code</th>
+                        <th className="px-3 py-2.5 font-semibold">Rank</th>
+                        <th className="px-3 py-2.5 font-semibold">Email</th>
+                        <th className="px-3 py-2.5 font-semibold">Attendance</th>
+                        <th className="px-3 py-2.5 font-semibold">Registered</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrations.map((row, index) => {
+                        const fullName =
+                          `${row.user.firstName} ${row.user.lastName}`.trim() ||
+                          row.user.username
+                        const rank = rankTierFromPoints(row.user.totalPoints ?? 0)
+                        return (
+                          <tr key={row.id} className="border-b border-line/50">
+                            <td className="px-3 py-2.5 tabular-nums text-ink/50">
+                              {index + 1}
+                            </td>
+                            <td className="px-3 py-2.5 font-semibold">
+                              {fullName}
+                            </td>
+                            <td className="px-3 py-2.5 text-ink/80">
+                              {formatUniqueCode(row.user.username)}
+                            </td>
+                            <td className="px-3 py-2.5 text-ink/80">{rank}</td>
+                            <td className="px-3 py-2.5 text-ink/80">
+                              {row.user.email ?? '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-ink/80">
+                              {row.attendedAt ? (
+                                <span className="font-semibold text-emerald-700">
+                                  Present
+                                </span>
+                              ) : (
+                                <span className="text-ink/45">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-ink/80">
+                              {formatWhen(row.registeredAt)}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 space-y-3 md:hidden">
+                  {registrations.map((row, index) => {
+                    const fullName =
+                      `${row.user.firstName} ${row.user.lastName}`.trim() ||
+                      row.user.username
+                    const rank = rankTierFromPoints(row.user.totalPoints ?? 0)
+                    return (
+                      <article
+                        key={row.id}
+                        className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold tabular-nums text-ink/40">
+                              #{index + 1}
+                            </p>
+                            <p className="mt-1 font-semibold text-ink">{fullName}</p>
+                            <p className="mt-1 text-sm text-ink/60">
+                              {formatUniqueCode(row.user.username)}
+                            </p>
+                          </div>
+                          <span className="rounded-md bg-accent/50 px-2 py-0.5 text-xs font-semibold text-ink/70">
+                            {rank}
+                          </span>
+                        </div>
+                        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                              Attendance
+                            </dt>
+                            <dd className="mt-0.5 font-medium text-ink/80">
+                              {row.attendedAt ? (
+                                <span className="text-emerald-700">Present</span>
+                              ) : (
+                                '—'
+                              )}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                              Registered
+                            </dt>
+                            <dd className="mt-0.5 font-medium text-ink/80">
+                              {formatWhen(row.registeredAt)}
+                            </dd>
+                          </div>
+                        </dl>
+                        {row.user.email ? (
+                          <p className="mt-2 truncate text-sm text-ink/60">
+                            {row.user.email}
+                          </p>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </GlassPanel>
         </>

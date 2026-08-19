@@ -165,7 +165,7 @@ export function PlayersPage() {
       </div>
 
       <GlassPanel strong className="overflow-hidden">
-        <div className="min-h-[28rem] overflow-x-auto">
+        <div className="hidden min-h-[28rem] overflow-x-auto lg:block">
           <table className="w-full min-w-[720px] text-left text-sm text-ink">
             <thead className="border-b border-line bg-accent/40 text-ink/80">
               <tr>
@@ -235,8 +235,71 @@ export function PlayersPage() {
           </table>
         </div>
 
+        <div className="space-y-3 p-4 lg:hidden">
+          {isPending ? (
+            <p className="py-16 text-center text-sm text-ink/60">Loading…</p>
+          ) : players.length === 0 ? (
+            <p className="py-16 text-center text-sm text-ink/60">
+              No players found
+            </p>
+          ) : (
+            players.map((player) => {
+              const name =
+                displayName(player.firstName, player.lastName).trim() ||
+                player.username ||
+                'Unknown player'
+              const rank = rankTierFromPoints(player.totalPoints ?? 0)
+              return (
+                <button
+                  key={player.id}
+                  type="button"
+                  className="w-full rounded-xl border border-line/70 bg-white/80 p-4 text-left shadow-sm transition hover:border-primary/30"
+                  onClick={() => navigate(`/admin/players/${player.id}`)}
+                >
+                  <p className="font-semibold text-ink">{name}</p>
+                  <p className="mt-1 text-sm text-ink/60">
+                    {formatUniqueCode(player.username)}
+                  </p>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        Rank
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">{rank}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        State
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">
+                        {player.state?.trim() || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        City
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">
+                        {player.city?.trim() || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        Joined
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">
+                        {formatWhen(player.createdAt)}
+                      </dd>
+                    </div>
+                  </dl>
+                </button>
+              )
+            })
+          )}
+        </div>
+
         {totalPages > 1 ? (
-          <div className="border-t border-line px-4 py-3">
+          <div className="border-t border-line px-4 py-3 lg:border-t-0">
             <Pagination
               page={listPage}
               totalPages={totalPages}

@@ -16,7 +16,7 @@ export function Modal({
   title,
   onClose,
   children,
-  className = 'max-w-lg',
+  className = 'w-full max-w-[calc(100vw-2rem)] sm:max-w-lg',
   panelClassName = '',
 }: ModalProps) {
   useEffect(() => {

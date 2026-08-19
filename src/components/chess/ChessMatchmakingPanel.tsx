@@ -148,12 +148,12 @@ function BoardCard({
         )}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch">
         <button
           type="button"
           disabled={saving || done}
           onClick={() => onResult('WHITE_WIN')}
-          className={`rounded-xl border px-3 py-3 text-left transition disabled:cursor-default ${
+          className={`min-h-11 rounded-xl border px-3 py-3 text-left transition disabled:cursor-default sm:min-h-0 ${
             whiteWon
               ? 'border-emerald-400 bg-emerald-50'
               : done
@@ -177,13 +177,13 @@ function BoardCard({
           ) : null}
         </button>
 
-        <div className="flex flex-col items-center justify-center self-center">
+        <div className="flex w-full flex-col items-stretch justify-center sm:w-auto sm:items-center sm:self-center">
           {!done ? (
             <button
               type="button"
               disabled={saving}
               onClick={() => onResult('DRAW')}
-              className="rounded-xl border border-line bg-white px-3 py-3 text-center transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98] disabled:cursor-default"
+              className="min-h-11 w-full rounded-xl border border-line bg-white px-3 py-3 text-center transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98] disabled:cursor-default sm:min-h-0 sm:w-auto"
             >
               <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40">
                 Draw
@@ -211,7 +211,7 @@ function BoardCard({
           type="button"
           disabled={saving || done}
           onClick={() => onResult('BLACK_WIN')}
-          className={`rounded-xl border px-3 py-3 text-left transition disabled:cursor-default ${
+          className={`min-h-11 rounded-xl border px-3 py-3 text-left transition disabled:cursor-default sm:min-h-0 ${
             blackWon
               ? 'border-emerald-400 bg-emerald-50'
               : done

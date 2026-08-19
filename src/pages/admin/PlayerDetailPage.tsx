@@ -517,8 +517,9 @@ export function PlayerDetailPage() {
 
           {activeTab === 'events' ? (
             <>
-              <DataTable>
-                <table className="w-full min-w-[720px] text-left text-sm">
+              <div className="hidden lg:block">
+                <DataTable>
+                  <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="border-b border-line bg-accent/50 text-ink/70">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Event</th>
@@ -584,6 +585,69 @@ export function PlayerDetailPage() {
                   </tbody>
                 </table>
               </DataTable>
+              </div>
+
+              <div className="space-y-3 lg:hidden">
+                {regsPending ? (
+                  <p className="py-10 text-center text-sm text-ink/55">Loading…</p>
+                ) : regRows.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-ink/55">No events yet</p>
+                ) : (
+                  regRows.map((row: PlayerRegistrationRow) => (
+                    <article
+                      key={row.id}
+                      className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+                    >
+                      <Link
+                        to={`/admin/events/${row.event.id}`}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        {row.event.name}
+                      </Link>
+                      <p className="mt-0.5 text-xs text-ink/50">{row.event.sport}</p>
+                      <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                            Date
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-ink/80">
+                            {formatWhen(row.event.startsAt)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                            Outcome
+                          </dt>
+                          <dd className="mt-0.5">
+                            <OutcomeBadge outcome={row.outcome} />
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                            W / L / D
+                          </dt>
+                          <dd className="mt-0.5 tabular-nums font-medium text-ink/80">
+                            <span className="text-emerald-700">{row.eventWins}</span>
+                            {' / '}
+                            <span className="text-red-700">{row.eventLosses}</span>
+                            {' / '}
+                            {row.eventDraws}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                            Points
+                          </dt>
+                          <dd className="mt-0.5 font-semibold tabular-nums text-primary">
+                            {row.pointsEarned}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))
+                )}
+              </div>
+
               {regTotalPages > 1 ? (
                 <div className="mt-4">
                   <Pagination
@@ -599,8 +663,9 @@ export function PlayerDetailPage() {
 
           {activeTab === 'matches' ? (
             <>
-              <DataTable>
-                <table className="w-full min-w-[800px] text-left text-sm">
+              <div className="hidden lg:block">
+                <DataTable>
+                  <table className="w-full min-w-[800px] text-left text-sm">
                   <thead className="border-b border-line bg-accent/50 text-ink/70">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Event</th>
@@ -706,6 +771,109 @@ export function PlayerDetailPage() {
                   </tbody>
                 </table>
               </DataTable>
+              </div>
+
+              <div className="space-y-3 lg:hidden">
+                {matchesPending ? (
+                  <p className="py-10 text-center text-sm text-ink/55">Loading…</p>
+                ) : matchRows.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-ink/55">
+                    No chess matches recorded
+                  </p>
+                ) : (
+                  matchRows.map((match) => {
+                    const opponent = opponentFor(match, id)
+                    const side =
+                      match.white.userId === id ? match.white : match.black
+                    const result = matchResultForPlayer(match, id)
+                    return (
+                      <article
+                        key={match.id}
+                        className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+                      >
+                        {match.event ? (
+                          <Link
+                            to={`/admin/events/${match.event.id}`}
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            {match.event.name}
+                          </Link>
+                        ) : (
+                          <p className="font-semibold text-ink">—</p>
+                        )}
+                        <p className="mt-1 text-sm text-ink/60">
+                          {match.roundNumber != null
+                            ? `Round ${match.roundNumber}${match.batchNumber != null ? ` · Batch ${match.batchNumber}` : ''}`
+                            : 'Round —'}
+                        </p>
+                        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                          <div className="col-span-2">
+                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                              Opponent
+                            </dt>
+                            <dd className="mt-0.5 font-medium text-ink/80">
+                              {opponent ? (
+                                <Link
+                                  to={`/admin/players/${opponent.user.id}`}
+                                  className="font-semibold text-primary hover:underline"
+                                >
+                                  {displayName(
+                                    opponent.user.firstName,
+                                    opponent.user.lastName,
+                                  )}
+                                </Link>
+                              ) : (
+                                '—'
+                              )}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                              Color
+                            </dt>
+                            <dd className="mt-0.5 font-medium text-ink/80">
+                              {playerColor(match, id)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                              Result
+                            </dt>
+                            <dd className="mt-0.5">
+                              <MatchResultBadge result={result} />
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                              Rating Δ
+                            </dt>
+                            <dd className="mt-0.5 font-bold tabular-nums">
+                              {side.ratingDelta != null ? (
+                                <span
+                                  className={
+                                    side.ratingDelta > 0
+                                      ? 'text-emerald-700'
+                                      : side.ratingDelta < 0
+                                        ? 'text-red-700'
+                                        : 'text-ink/60'
+                                  }
+                                >
+                                  {side.ratingDelta > 0
+                                    ? `+${side.ratingDelta}`
+                                    : String(side.ratingDelta)}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </dd>
+                          </div>
+                        </dl>
+                      </article>
+                    )
+                  })
+                )}
+              </div>
+
               {matchTotalPages > 1 ? (
                 <div className="mt-4">
                   <Pagination
