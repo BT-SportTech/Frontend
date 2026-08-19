@@ -691,11 +691,11 @@ export function ChessMatchmakingPanel({
 
       queryClient.setQueryData(
         chessMatchmakingKeys.matches(event.id),
-        (old) => {
+        (old: { eventId: string; data: ChessMatchRow[] } | undefined) => {
           if (!old) return old
           return {
             ...old,
-            data: old.data.map((m) =>
+            data: old.data.map((m: ChessMatchRow) =>
               m.id === matchId
                 ? {
                     ...m,
@@ -711,7 +711,7 @@ export function ChessMatchmakingPanel({
 
       queryClient.setQueryData(
         chessMatchmakingKeys.status(event.id),
-        (old) => {
+        (old: ChessMatchmakingStatus | undefined) => {
           if (!old) return old
           return {
             ...old,
@@ -758,11 +758,13 @@ export function ChessMatchmakingPanel({
       setActionError('')
       queryClient.setQueryData(
         chessMatchmakingKeys.matches(event.id),
-        (old) => {
+        (old: { eventId: string; data: ChessMatchRow[] } | undefined) => {
           if (!old) return old
           return {
             ...old,
-            data: old.data.map((m) => (m.id === matchId ? data : m)),
+            data: old.data.map((m: ChessMatchRow) =>
+              m.id === matchId ? data : m,
+            ),
           }
         },
       )
