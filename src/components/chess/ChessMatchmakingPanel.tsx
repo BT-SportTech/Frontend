@@ -110,12 +110,10 @@ function GameProgressStepper({
 
 function BoardCard({
   match,
-  busy,
   saving,
   onResult,
 }: {
   match: ChessMatchRow
-  busy: boolean
   saving: boolean
   onResult: (result: ChessMatchResult) => void
 }) {
@@ -145,7 +143,7 @@ function BoardCard({
           </span>
         ) : (
           <span className="text-xs font-semibold text-amber-700">
-            Tap White, Black, or Draw
+            {saving ? 'Saving…' : 'Tap White, Black, or Draw'}
           </span>
         )}
       </div>
@@ -153,7 +151,7 @@ function BoardCard({
       <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
         <button
           type="button"
-          disabled={busy || done}
+          disabled={saving || done}
           onClick={() => onResult('WHITE_WIN')}
           className={`rounded-xl border px-3 py-3 text-left transition disabled:cursor-default ${
             whiteWon
@@ -183,7 +181,7 @@ function BoardCard({
           {!done ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={saving}
               onClick={() => onResult('DRAW')}
               className="rounded-xl border border-line bg-white px-3 py-3 text-center transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.98] disabled:cursor-default"
             >
@@ -211,7 +209,7 @@ function BoardCard({
 
         <button
           type="button"
-          disabled={busy || done}
+          disabled={saving || done}
           onClick={() => onResult('BLACK_WIN')}
           className={`rounded-xl border px-3 py-3 text-left transition disabled:cursor-default ${
             blackWon
@@ -463,7 +461,20 @@ export function ChessMatchmakingPanel({
     'boards',
   )
   const [subTabSeeded, setSubTabSeeded] = useState(false)
+  const [savingMatchIds, setSavingMatchIds] = useState<Set<string>>(() => new Set())
   const finalizeInFlightRef = useRef(false)
+  const savingMatchIdsRef = useRef<Set<string>>(new Set())
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function markSaving(matchId: string, saving: boolean) {
+    setSavingMatchIds((prev) => {
+      const next = new Set(prev)
+      if (saving) next.add(matchId)
+      else next.delete(matchId)
+      savingMatchIdsRef.current = next
+      return next
+    })
+  }
 
   const statusQuery = useQuery({
     queryKey: chessMatchmakingKeys.status(event.id),
@@ -490,6 +501,49 @@ export function ChessMatchmakingPanel({
         queryKey: organizerEventsKeys.detail(event.id),
       }),
     ])
+  }
+
+  async function syncAfterScoring() {
+    const latestStatus = queryClient.getQueryData<ChessMatchmakingStatus>(
+      chessMatchmakingKeys.status(event.id),
+    )
+    const games = latestStatus?.gamesPerPlayer ?? event.gamesPerPlayer ?? 3
+    const tournamentMaybeComplete =
+      latestStatus?.activeBatch?.pendingMatches === 0 &&
+      (latestStatus?.playerProgress ?? [])
+        .filter((p) => !p.withdrawn)
+        .every((p) => p.gamesCompleted >= games)
+
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: chessMatchmakingKeys.status(event.id),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: chessMatchmakingKeys.matches(event.id),
+      }),
+      ...(tournamentMaybeComplete
+        ? [
+            queryClient.invalidateQueries({
+              queryKey: organizerEventsKeys.registrations(event.id),
+            }),
+            queryClient.invalidateQueries({
+              queryKey: organizerEventsKeys.detail(event.id),
+            }),
+          ]
+        : []),
+    ])
+
+    if (savingMatchIdsRef.current.size === 0) {
+      await maybeAutoFinalizeTournament()
+    }
+  }
+
+  function scheduleDebouncedSync() {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null
+      void syncAfterScoring()
+    }, 400)
   }
 
   function applyCompletedStatus(data: ChessMatchmakingStatus) {
@@ -548,7 +602,22 @@ export function ChessMatchmakingPanel({
   })
 
   async function maybeAutoFinalizeTournament() {
-    if (finalizeInFlightRef.current) return
+    if (
+      finalizeInFlightRef.current ||
+      savingMatchIdsRef.current.size > 0
+    ) {
+      return
+    }
+
+    const cachedStatus = queryClient.getQueryData<ChessMatchmakingStatus>(
+      chessMatchmakingKeys.status(event.id),
+    )
+    if (
+      cachedStatus?.activeBatch &&
+      cachedStatus.activeBatch.pendingMatches > 0
+    ) {
+      return
+    }
 
     const latest = await queryClient.fetchQuery({
       queryKey: chessMatchmakingKeys.status(event.id),
@@ -591,15 +660,135 @@ export function ChessMatchmakingPanel({
       matchId: string
       result: ChessMatchResult
     }) => setChessMatchResult(event.id, matchId, result),
-    onSuccess: async () => {
+    onMutate: async ({ matchId, result }) => {
+      markSaving(matchId, true)
       setActionError('')
-      await invalidateAll()
-      await maybeAutoFinalizeTournament()
+
+      await queryClient.cancelQueries({
+        queryKey: chessMatchmakingKeys.matches(event.id),
+      })
+      await queryClient.cancelQueries({
+        queryKey: chessMatchmakingKeys.status(event.id),
+      })
+
+      const previousMatches = queryClient.getQueryData<{
+        eventId: string
+        data: ChessMatchRow[]
+      }>(chessMatchmakingKeys.matches(event.id))
+      const previousStatus = queryClient.getQueryData<ChessMatchmakingStatus>(
+        chessMatchmakingKeys.status(event.id),
+      )
+
+      const match = previousMatches?.data.find((m) => m.id === matchId)
+      if (!match) {
+        return { previousMatches, previousStatus, matchId }
+      }
+
+      const whiteWon = result === 'WHITE_WIN'
+      const blackWon = result === 'BLACK_WIN'
+      const isDraw = result === 'DRAW'
+      const completedAt = new Date().toISOString()
+
+      queryClient.setQueryData(
+        chessMatchmakingKeys.matches(event.id),
+        (old: { eventId: string; data: ChessMatchRow[] } | undefined) => {
+          if (!old) return old
+          return {
+            ...old,
+            data: old.data.map((m: ChessMatchRow) =>
+              m.id === matchId
+                ? {
+                    ...m,
+                    status: 'COMPLETED' as const,
+                    result,
+                    completedAt,
+                  }
+                : m,
+            ),
+          }
+        },
+      )
+
+      queryClient.setQueryData(
+        chessMatchmakingKeys.status(event.id),
+        (old: ChessMatchmakingStatus | undefined) => {
+          if (!old) return old
+          return {
+            ...old,
+            activeBatch: old.activeBatch
+              ? {
+                  ...old.activeBatch,
+                  pendingMatches: Math.max(
+                    0,
+                    old.activeBatch.pendingMatches - 1,
+                  ),
+                  completedMatches: old.activeBatch.completedMatches + 1,
+                }
+              : null,
+            playerProgress: old.playerProgress.map((p) => {
+              if (p.registrationId === match.white.registrationId) {
+                return {
+                  ...p,
+                  gamesCompleted: p.gamesCompleted + 1,
+                  whiteGames: p.whiteGames + 1,
+                  eventWins: whiteWon ? p.eventWins + 1 : p.eventWins,
+                  eventLosses: blackWon ? p.eventLosses + 1 : p.eventLosses,
+                  eventDraws: isDraw ? p.eventDraws + 1 : p.eventDraws,
+                }
+              }
+              if (p.registrationId === match.black.registrationId) {
+                return {
+                  ...p,
+                  gamesCompleted: p.gamesCompleted + 1,
+                  blackGames: p.blackGames + 1,
+                  eventWins: blackWon ? p.eventWins + 1 : p.eventWins,
+                  eventLosses: whiteWon ? p.eventLosses + 1 : p.eventLosses,
+                  eventDraws: isDraw ? p.eventDraws + 1 : p.eventDraws,
+                }
+              }
+              return p
+            }),
+          }
+        },
+      )
+
+      return { previousMatches, previousStatus, matchId }
     },
-    onError: (err) => {
+    onSuccess: (data, { matchId }) => {
+      setActionError('')
+      queryClient.setQueryData(
+        chessMatchmakingKeys.matches(event.id),
+        (old: { eventId: string; data: ChessMatchRow[] } | undefined) => {
+          if (!old) return old
+          return {
+            ...old,
+            data: old.data.map((m: ChessMatchRow) =>
+              m.id === matchId ? data : m,
+            ),
+          }
+        },
+      )
+    },
+    onError: (err, _vars, context) => {
+      if (context?.previousMatches) {
+        queryClient.setQueryData(
+          chessMatchmakingKeys.matches(event.id),
+          context.previousMatches,
+        )
+      }
+      if (context?.previousStatus) {
+        queryClient.setQueryData(
+          chessMatchmakingKeys.status(event.id),
+          context.previousStatus,
+        )
+      }
       setActionError(
         err instanceof Error ? err.message : 'Failed to save match result',
       )
+    },
+    onSettled: (_data, _error, { matchId }) => {
+      markSaving(matchId, false)
+      scheduleDebouncedSync()
     },
   })
 
@@ -724,7 +913,6 @@ export function ChessMatchmakingPanel({
   const busy =
     startMutation.isPending ||
     nextBatchMutation.isPending ||
-    resultMutation.isPending ||
     withdrawMutation.isPending
 
   const readyCount = status?.playerProgress.filter((p) => !p.withdrawn).length
@@ -739,6 +927,12 @@ export function ChessMatchmakingPanel({
 
   const tournamentComplete =
     mmStatus === 'COMPLETED' || allPlayersFinished
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!status || subTabSeeded) return
@@ -968,11 +1162,7 @@ export function ChessMatchmakingPanel({
                     <BoardCard
                       key={match.id}
                       match={match}
-                      busy={busy}
-                      saving={
-                        resultMutation.isPending &&
-                        resultMutation.variables?.matchId === match.id
-                      }
+                      saving={savingMatchIds.has(match.id)}
                       onResult={(result) =>
                         resultMutation.mutate({ matchId: match.id, result })
                       }
