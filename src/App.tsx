@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import {
   AdminRoute,
   OrganizerRoute,
@@ -40,42 +40,126 @@ function HomeRedirect() {
   return <Navigate to="/login" replace />
 }
 
+const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/invite/:token',
+    element: <AcceptInvitePage />,
+  },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <AdminRoute />,
+        children: [
+          {
+            path: '/admin',
+            element: <AdminLayout />,
+            handle: { title: 'Dashboard', breadcrumb: 'Dashboard' },
+            children: [
+              { index: true, element: <DashboardPage /> },
+              {
+                path: 'schools',
+                element: <SchoolsPage />,
+                handle: { title: 'Schools', breadcrumb: 'Schools' },
+              },
+              {
+                path: 'schools/new',
+                element: <SchoolCreatePage />,
+                handle: { title: 'New school', breadcrumb: 'New' },
+              },
+              {
+                path: 'schools/:id/edit',
+                element: <SchoolEditPage />,
+                handle: { title: 'Edit school', breadcrumb: 'Edit' },
+              },
+              {
+                path: 'schools/:id',
+                element: <SchoolDetailPage />,
+                handle: { title: 'School', breadcrumb: 'Detail' },
+              },
+              {
+                path: 'events',
+                element: <EventsPage />,
+                handle: { title: 'Events', breadcrumb: 'Events' },
+              },
+              {
+                path: 'events/new',
+                element: <EventCreatePage />,
+                handle: { title: 'New event', breadcrumb: 'New' },
+              },
+              {
+                path: 'events/:id',
+                element: <EventDetailPage />,
+                handle: { title: 'Event', breadcrumb: 'Detail' },
+              },
+              {
+                path: 'players',
+                handle: {
+                  title: 'Players',
+                  breadcrumb: 'Players',
+                  contentWidth: 'wide',
+                },
+                children: [
+                  { index: true, element: <PlayersPage /> },
+                  {
+                    path: ':id',
+                    element: <PlayerDetailPage />,
+                    handle: { title: 'Player', breadcrumb: 'Profile' },
+                  },
+                ],
+              },
+              {
+                path: 'organizers',
+                element: <OrganizersPage />,
+                handle: { title: 'Organisers', breadcrumb: 'Organisers' },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        element: <OrganizerRoute />,
+        children: [
+          {
+            path: '/organizer',
+            element: <OrganizerLayout />,
+            handle: { title: 'My events', breadcrumb: 'My events' },
+            children: [
+              { index: true, element: <OrganizerEventsPage /> },
+              {
+                path: 'history',
+                element: <OrganizerHistoryPage />,
+                handle: { title: 'History', breadcrumb: 'History' },
+              },
+              {
+                path: 'events/:id',
+                element: <OrganizerEventDetailPage />,
+                handle: {
+                  title: 'Check-in',
+                  breadcrumb: 'Event',
+                  contentWidth: 'full',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/',
+    element: <HomeRedirect />,
+  },
+  {
+    path: '*',
+    element: <HomeRedirect />,
+  },
+])
+
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/invite/:token" element={<AcceptInvitePage />} />
-
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AdminRoute />}>
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="schools" element={<SchoolsPage />} />
-              <Route path="schools/new" element={<SchoolCreatePage />} />
-              <Route path="schools/:id/edit" element={<SchoolEditPage />} />
-              <Route path="schools/:id" element={<SchoolDetailPage />} />
-              <Route path="events" element={<EventsPage />} />
-              <Route path="events/new" element={<EventCreatePage />} />
-              <Route path="events/:id" element={<EventDetailPage />} />
-              <Route path="players" element={<PlayersPage />} />
-              <Route path="players/:id" element={<PlayerDetailPage />} />
-              <Route path="organizers" element={<OrganizersPage />} />
-            </Route>
-          </Route>
-
-          <Route element={<OrganizerRoute />}>
-            <Route path="/organizer" element={<OrganizerLayout />}>
-              <Route index element={<OrganizerEventsPage />} />
-              <Route path="history" element={<OrganizerHistoryPage />} />
-              <Route path="events/:id" element={<OrganizerEventDetailPage />} />
-            </Route>
-          </Route>
-        </Route>
-
-        <Route path="/" element={<HomeRedirect />} />
-        <Route path="*" element={<HomeRedirect />} />
-      </Routes>
-    </BrowserRouter>
-  )
+  return <RouterProvider router={router} />
 }

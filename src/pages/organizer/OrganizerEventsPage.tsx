@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { GlassPanel, Skeleton } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { resolveAssetUrl } from '../../lib/api'
 import {
   fetchOrganizerEvents,
@@ -216,19 +217,15 @@ export function OrganizerEventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-            My events
-          </h1>
-          <p className="mt-1.5 text-sm text-ink/55">
-            Events assigned to you. Open an event when check-in is open.
-          </p>
-        </div>
-        {!isPending && !isError && events.length > 0 ? (
-          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
-        ) : null}
-      </div>
+      <PageHeader
+        title="My events"
+        description="Events assigned to you. Open an event when check-in is open."
+        actions={
+          !isPending && !isError && events.length > 0 ? (
+            <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+          ) : null
+        }
+      />
 
       {isPending ? (
         viewMode === 'cards' ? (

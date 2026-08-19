@@ -8,6 +8,8 @@ import {
   fetchDashboardStats,
 } from '../../lib/queries/dashboard'
 import { GlassPanel } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { StatGrid } from '@/components/layout/StatGrid'
 import { toast } from '../../stores/useToastStore'
 
 export function DashboardPage() {
@@ -30,42 +32,37 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-sans text-3xl font-bold tracking-tight text-ink">
-          Dashboard
-        </h1>
-        <p className="mt-1.5 text-sm text-ink/55">
-          Platform analytics for schools and players.
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Platform analytics for schools and players."
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Active schools"
-          value={stats?.schoolsActive}
-          loading={loading}
-          accent="primary"
-          to="/admin/schools"
-        />
-        <StatCard
-          label="Total users"
-          value={stats?.usersTotal}
-          loading={loading}
-          accent="secondary"
-        />
-        <StatCard
-          label="Players"
-          value={stats?.players}
-          loading={loading}
-          accent="primary"
-        />
-        <StatCard
-          label="Professionals"
-          value={stats?.professionals}
-          loading={loading}
-          accent="secondary"
-        />
-      </div>
+      <StatGrid
+        items={[
+          {
+            label: 'Active schools',
+            value: loading ? '—' : stats?.schoolsActive,
+            to: '/admin/schools',
+            accent: 'primary',
+          },
+          {
+            label: 'Total users',
+            value: loading ? '—' : stats?.usersTotal,
+            accent: 'secondary',
+          },
+          {
+            label: 'Players',
+            value: loading ? '—' : stats?.players,
+            to: '/admin/players',
+            accent: 'primary',
+          },
+          {
+            label: 'Professionals',
+            value: loading ? '—' : stats?.professionals,
+            accent: 'secondary',
+          },
+        ]}
+      />
 
       <div className="grid gap-4 lg:grid-cols-5">
         <GlassPanel strong className="p-6 lg:col-span-3">
@@ -98,9 +95,10 @@ export function DashboardPage() {
               <p className="py-8 text-center text-sm text-ink/50">Loading…</p>
             ) : stats?.recentSchools.length ? (
               stats.recentSchools.map((school) => (
-                <div
+                <Link
                   key={school.id}
-                  className="flex items-center gap-3 rounded-lg px-1 py-2"
+                  to={`/admin/schools/${school.id}`}
+                  className="flex items-center gap-3 rounded-lg px-1 py-2 transition hover:bg-muted"
                 >
                   {school.logoUrl ? (
                     <img
@@ -122,7 +120,7 @@ export function DashboardPage() {
                       {school.city ? ` · ${school.city}` : ''}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <p className="py-8 text-center text-sm text-ink/50">
@@ -213,53 +211,6 @@ function SchoolsByTypeChart({
       </div>
     </div>
   )
-}
-
-function StatCard({
-  label,
-  value,
-  loading,
-  accent,
-  to,
-}: {
-  label: string
-  value?: number
-  loading: boolean
-  accent: 'primary' | 'secondary'
-  to?: string
-}) {
-  const labelClass =
-    accent === 'primary' ? 'text-primary' : 'text-secondary'
-  const barClass = accent === 'primary' ? 'bg-primary' : 'bg-secondary'
-
-  const panel = (
-    <GlassPanel
-      strong
-      className={`relative overflow-hidden p-5 ${
-        to ? 'transition group-hover:-translate-y-0.5' : ''
-      }`}
-    >
-      <div className={`absolute inset-y-0 left-0 w-1 ${barClass}`} />
-      <p
-        className={`text-xs font-semibold uppercase tracking-wide ${labelClass}`}
-      >
-        {label}
-      </p>
-      <p className="mt-2 font-sans text-3xl font-bold tabular-nums text-ink">
-        {loading ? '—' : (value ?? 0).toLocaleString()}
-      </p>
-    </GlassPanel>
-  )
-
-  if (to) {
-    return (
-      <Link to={to} className="group block">
-        {panel}
-      </Link>
-    )
-  }
-
-  return panel
 }
 
 function SchoolGlyph() {

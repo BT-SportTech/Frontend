@@ -5,6 +5,8 @@ import { resolveAssetUrl } from '../../lib/api'
 import type { SchoolListItem } from '../../lib/types'
 import { Pagination } from '../../components/Pagination'
 import { Button, GlassPanel } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/layout/FilterBar'
 import { DraftToast } from '../../components/ui/DraftToast'
 import { Modal } from '../../components/ui/Modal'
 import { dashboardKeys } from '../../lib/queries/dashboard'
@@ -19,13 +21,13 @@ import {
   readSchoolDraft,
 } from '../../lib/schoolDraft'
 import { emptySchoolForm } from '../../lib/schoolForm'
-import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+
 import { toast } from '../../stores/useToastStore'
 
 export function SchoolsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const search = useAdminSearchStore((state) => state.schools)
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
@@ -120,19 +122,21 @@ export function SchoolsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-            Schools
-          </h1>
-          <p className="mt-1.5 text-sm text-ink/55">
-            Register and manage school profiles
-          </p>
-        </div>
-        <Button onClick={() => navigate('/admin/schools/new')}>
-          Add school
-        </Button>
-      </div>
+      <PageHeader
+        title="Schools"
+        description="Register and manage school profiles"
+        actions={
+          <Button onClick={() => navigate('/admin/schools/new')}>
+            Add school
+          </Button>
+        }
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search schools…"
+      />
 
       <GlassPanel strong className="overflow-hidden">
         <div className="hidden min-h-[28rem] overflow-x-auto lg:block">

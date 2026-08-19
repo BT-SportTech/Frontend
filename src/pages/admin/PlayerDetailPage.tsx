@@ -1,8 +1,20 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Pagination } from '../../components/Pagination'
-import { GlassPanel, Skeleton, TabBar } from '../../components/ui'
 import { displayName } from '../../lib/displayName'
 import { rankTierFromPoints } from '../../lib/rankTier'
 import { formatUniqueCode } from '../../lib/uniqueCode'
@@ -13,7 +25,7 @@ import {
   fetchPlayerStats,
   usersKeys,
 } from '../../lib/queries/users'
-import type { PlayerMatchRow, PlayerRegistrationRow } from '../../lib/types'
+import type { PlayerMatchRow, PlayerRegistrationRow, PlayerDetail } from '../../lib/types'
 
 function display(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '—'
@@ -40,18 +52,14 @@ function DetailField({
   value: ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-line/60 bg-white/80 px-4 py-3.5 shadow-sm">
-      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink/40">
-        {label}
-      </dt>
-      <dd className="mt-1.5 break-words text-[15px] font-semibold leading-snug text-ink">
-        {value}
-      </dd>
+    <div>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold text-ink">{value}</dd>
     </div>
   )
 }
 
-function ProfileSection({
+function ProfileFieldsSection({
   title,
   children,
 }: {
@@ -59,30 +67,9 @@ function ProfileSection({
   children: ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line/60 bg-white/50 shadow-sm">
-      <h3 className="border-b border-line/50 bg-accent/30 px-5 py-3 text-xs font-bold uppercase tracking-wider text-ink/50">
-        {title}
-      </h3>
-      <dl className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>
-    </section>
-  )
-}
-
-function SectionBlock({
-  title,
-  children,
-  flush = false,
-}: {
-  title: string
-  children: ReactNode
-  flush?: boolean
-}) {
-  return (
-    <section className="overflow-hidden rounded-2xl border border-line/60 bg-white/50 shadow-sm">
-      <h3 className="border-b border-line/50 bg-accent/30 px-5 py-3 text-xs font-bold uppercase tracking-wider text-ink/50">
-        {title}
-      </h3>
-      <div className={flush ? undefined : 'p-5'}>{children}</div>
+    <section>
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>
     </section>
   )
 }
@@ -93,44 +80,80 @@ function initials(firstName: string, lastName: string) {
   return `${first}${last}`.toUpperCase() || '?'
 }
 
-function ProfileHero({
-  player,
-}: {
-  player: {
-    firstName: string
-    lastName: string
-    username: string
-    totalPoints: number
-  }
-}) {
+function interleaveDot(items: ReactNode[]) {
+  return items.flatMap((item, index) =>
+    index === 0 ? [item] : [<span key={`dot-${index}`} className="mx-1.5">·</span>, item],
+  )
+}
+
+function PlayerSummaryCard({ player }: { player: PlayerDetail }) {
   const name = displayName(player.firstName, player.lastName)
   const rank = rankTierFromPoints(player.totalPoints)
+  const location =
+    [player.city, player.district, player.state].filter(Boolean).join(', ')
+
+  const contactLine: ReactNode[] = []
+  if (player.email) contactLine.push(player.email)
+  if (player.phone) contactLine.push(player.phone)
+  if (location) contactLine.push(location)
+  if (player.school) {
+    contactLine.push(
+      <Link
+        key="school"
+        to={`/admin/schools/${player.school.id}`}
+        className="text-primary hover:underline"
+      >
+        {player.school.name}
+      </Link>,
+    )
+  }
+
+  const detailParts: ReactNode[] = []
+  if (player.sportsInterested.length > 0) {
+    detailParts.push(player.sportsInterested.join(', '))
+  }
+  detailParts.push(`${player.totalPoints} pts`)
+  if (player.chessRating) {
+    detailParts.push(`Chess ${player.chessRating.rating}`)
+  }
+  detailParts.push(`Joined ${formatDate(player.createdAt)}`)
 
   return (
-    <div className="flex flex-wrap items-center gap-5 rounded-2xl border border-line/70 bg-gradient-to-br from-white via-white to-primary/[0.06] p-6 shadow-sm shadow-primary/5">
-      <span
-        className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/15 via-accent to-primary/10 font-display text-xl font-bold text-primary shadow-sm"
-        aria-hidden
-      >
-        {initials(player.firstName, player.lastName)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
-          {name}
-        </h1>
-        <p className="mt-0.5 font-mono text-sm text-ink/50">
-          {formatUniqueCode(player.username)}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-            {rank}
-          </span>
-          <span className="inline-flex rounded-full border border-line/70 bg-white/90 px-3 py-1 text-xs font-semibold tabular-nums text-ink/75">
-            {player.totalPoints} pts
-          </span>
+    <Card>
+      <CardContent className="flex gap-4 p-6">
+        <span
+          className="inline-flex h-14 w-14 shrink-0 items-center justify-center self-start rounded-xl bg-primary/10 text-lg font-bold text-primary"
+          aria-hidden
+        >
+          {initials(player.firstName, player.lastName)}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-ink">
+              {name}
+            </h1>
+            <Badge variant="outline" className="font-medium text-muted-foreground">
+              {rank}
+            </Badge>
+          </div>
+
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
+            {formatUniqueCode(player.username)}
+          </p>
+
+          {contactLine.length > 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {interleaveDot(contactLine)}
+            </p>
+          ) : null}
+
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {interleaveDot(detailParts)}
+          </p>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -204,24 +227,6 @@ function MatchResultBadge({ result }: { result: string }) {
     >
       {result}
     </span>
-  )
-}
-
-function DataTable({
-  children,
-  nested = false,
-}: {
-  children: ReactNode
-  nested?: boolean
-}) {
-  if (nested) {
-    return <div className="overflow-x-auto">{children}</div>
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-line/70 bg-white/80 shadow-sm">
-      <div className="overflow-x-auto">{children}</div>
-    </div>
   )
 }
 
@@ -315,12 +320,14 @@ export function PlayerDetailPage() {
         >
           ← Back to players
         </Link>
-        <GlassPanel strong className="p-8 text-center">
-          <p className="font-semibold text-ink">Player not found</p>
-          <p className="mt-1 text-sm text-ink/55">
-            This player may have been removed or the link is invalid.
-          </p>
-        </GlassPanel>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="font-semibold text-ink">Player not found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This player may have been removed or the link is invalid.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -334,46 +341,32 @@ export function PlayerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        to="/admin/players"
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-      >
-        ← Back to players
-      </Link>
+      <PlayerSummaryCard player={player} />
 
-      <div>
-        <TabBar
-          aria-label="Player sections"
-          tabs={[
-            { id: 'profile', label: 'Profile' },
-            { id: 'overview', label: 'Overview' },
-            {
-              id: 'events',
-              label: 'Events',
-              badge: regTotal > 0 ? regTotal : undefined,
-            },
-            {
-              id: 'matches',
-              label: 'Matches',
-              badge: matchTotal > 0 ? matchTotal : undefined,
-            },
-          ]}
-          value={activeTab}
-          onChange={setActiveTab}
-        />
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as PlayerTab)}>
+        <TabsList className="w-full justify-start sm:w-auto">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="events">
+            Events{regTotal > 0 ? ` (${regTotal})` : ''}
+          </TabsTrigger>
+          <TabsTrigger value="matches">
+            Matches{matchTotal > 0 ? ` (${matchTotal})` : ''}
+          </TabsTrigger>
+        </TabsList>
 
-        <div className="pt-6">
-          {activeTab === 'profile' ? (
-            <div className="space-y-5">
-              <ProfileHero player={player} />
-
-              <ProfileSection title="Contact">
+        <TabsContent value="profile" className="mt-4">
+          <Card>
+            <CardContent className="space-y-8 p-6">
+              <ProfileFieldsSection title="Contact">
                 <DetailField label="Email" value={display(player.email)} />
                 <DetailField label="Phone" value={display(player.phone)} />
                 <DetailField label="Gender" value={display(player.gender)} />
-              </ProfileSection>
+              </ProfileFieldsSection>
 
-              <ProfileSection title="Personal">
+              <Separator />
+
+              <ProfileFieldsSection title="Personal">
                 <DetailField
                   label="Date of birth"
                   value={formatDate(player.dateOfBirth)}
@@ -387,9 +380,11 @@ export function PlayerDetailPage() {
                   }
                 />
                 <DetailField label="Class" value={display(player.presentClass)} />
-              </ProfileSection>
+              </ProfileFieldsSection>
 
-              <ProfileSection title="Affiliation">
+              <Separator />
+
+              <ProfileFieldsSection title="Affiliation">
                 <DetailField
                   label="School"
                   value={
@@ -412,12 +407,7 @@ export function PlayerDetailPage() {
                     player.sportsInterested.length > 0 ? (
                       <span className="flex flex-wrap gap-1.5">
                         {player.sportsInterested.map((sport) => (
-                          <span
-                            key={sport}
-                            className="rounded-md bg-accent/60 px-2 py-0.5 text-xs font-semibold text-ink/80"
-                          >
-                            {sport}
-                          </span>
+                          <Badge key={sport} variant="outline">{sport}</Badge>
                         ))}
                       </span>
                     ) : (
@@ -425,12 +415,12 @@ export function PlayerDetailPage() {
                     )
                   }
                 />
-              </ProfileSection>
-            </div>
-          ) : null}
+              </ProfileFieldsSection>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {activeTab === 'overview' ? (
-            <div className="space-y-6">
+        <TabsContent value="overview" className="mt-4 space-y-6">
               {statsPending || !stats ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                   {Array.from({ length: 5 }).map((_, index) => (
@@ -451,120 +441,121 @@ export function PlayerDetailPage() {
                     />
                   </div>
                   {player.chessRating ? (
-                    <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.08] to-white p-5 shadow-sm">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-primary/70">
-                        Chess rating
-                      </p>
-                      <p className="mt-1 font-display text-3xl font-bold tabular-nums text-primary">
-                        {player.chessRating.rating}
-                      </p>
-                      <p className="mt-1.5 text-sm font-medium text-ink/60">
-                        {player.chessRating.gamesPlayed} games ·{' '}
-                        <span className="text-emerald-700">
-                          {player.chessRating.wins}W
-                        </span>{' '}
-                        /{' '}
-                        <span className="text-red-700">
-                          {player.chessRating.losses}L
-                        </span>{' '}
-                        / {player.chessRating.draws}D
-                      </p>
-                    </div>
+                    <Card className="border-primary/20 bg-primary/5">
+                      <CardContent className="p-5">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                          Chess rating
+                        </p>
+                        <p className="mt-1 text-3xl font-bold tabular-nums text-primary">
+                          {player.chessRating.rating}
+                        </p>
+                        <p className="mt-1.5 text-sm text-muted-foreground">
+                          {player.chessRating.gamesPlayed} games ·{' '}
+                          <span className="text-emerald-700">
+                            {player.chessRating.wins}W
+                          </span>
+                          {' / '}
+                          <span className="text-red-700">
+                            {player.chessRating.losses}L
+                          </span>
+                          {' / '}
+                          {player.chessRating.draws}D
+                        </p>
+                      </CardContent>
+                    </Card>
                   ) : null}
                   {stats.bySport.length > 0 ? (
-                    <SectionBlock title="By sport" flush>
-                      <DataTable nested>
-                        <table className="w-full min-w-[480px] text-left text-sm">
-                          <thead className="border-b border-line bg-accent/50 text-ink/70">
-                            <tr>
-                              <th className="px-4 py-3 font-semibold">Sport</th>
-                              <th className="px-4 py-3 font-semibold">Played</th>
-                              <th className="px-4 py-3 font-semibold">W</th>
-                              <th className="px-4 py-3 font-semibold">L</th>
-                              <th className="px-4 py-3 font-semibold">D</th>
-                              <th className="px-4 py-3 font-semibold">Points</th>
-                            </tr>
-                          </thead>
-                          <tbody>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base">By sport</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Sport</TableHead>
+                              <TableHead>Played</TableHead>
+                              <TableHead>W</TableHead>
+                              <TableHead>L</TableHead>
+                              <TableHead>D</TableHead>
+                              <TableHead>Points</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {stats.bySport.map((row) => (
-                              <tr
-                                key={row.sport}
-                                className="border-b border-line/40 last:border-0"
-                              >
-                                <td className="px-4 py-3 font-semibold">{row.sport}</td>
-                                <td className="px-4 py-3 tabular-nums">{row.played}</td>
-                                <td className="px-4 py-3 font-medium tabular-nums text-emerald-700">
+                              <TableRow key={row.sport}>
+                                <TableCell className="font-semibold">
+                                  {row.sport}
+                                </TableCell>
+                                <TableCell>{row.played}</TableCell>
+                                <TableCell className="font-medium text-emerald-700">
                                   {row.won}
-                                </td>
-                                <td className="px-4 py-3 font-medium tabular-nums text-red-700">
+                                </TableCell>
+                                <TableCell className="font-medium text-red-700">
                                   {row.lost}
-                                </td>
-                                <td className="px-4 py-3 tabular-nums">{row.draw}</td>
-                                <td className="px-4 py-3 font-semibold tabular-nums text-primary">
+                                </TableCell>
+                                <TableCell>{row.draw}</TableCell>
+                                <TableCell className="font-semibold text-primary">
                                   {row.points}
-                                </td>
-                              </tr>
+                                </TableCell>
+                              </TableRow>
                             ))}
-                          </tbody>
-                        </table>
-                      </DataTable>
-                    </SectionBlock>
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
                   ) : null}
                 </>
               )}
-            </div>
-          ) : null}
+        </TabsContent>
 
-          {activeTab === 'events' ? (
-            <>
+        <TabsContent value="events" className="mt-4 space-y-4">
+          <Card>
+            <CardContent className="p-0">
               <div className="hidden lg:block">
-                <DataTable>
-                  <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="border-b border-line bg-accent/50 text-ink/70">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Event</th>
-                      <th className="px-4 py-3 font-semibold">Date</th>
-                      <th className="px-4 py-3 font-semibold">Outcome</th>
-                      <th className="px-4 py-3 font-semibold">W / L / D</th>
-                      <th className="px-4 py-3 font-semibold">Games</th>
-                      <th className="px-4 py-3 font-semibold">Points</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead>W / L / D</TableHead>
+                      <TableHead>Games</TableHead>
+                      <TableHead>Points</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {regsPending ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-ink/55">
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                           Loading…
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : regRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-ink/55">
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                           No events yet
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       regRows.map((row: PlayerRegistrationRow) => (
-                        <tr
-                          key={row.id}
-                          className="border-b border-line/40 last:border-0"
-                        >
-                          <td className="px-4 py-3">
+                        <TableRow key={row.id}>
+                          <TableCell>
                             <Link
                               to={`/admin/events/${row.event.id}`}
                               className="font-semibold text-primary hover:underline"
                             >
                               {row.event.name}
                             </Link>
-                            <p className="mt-0.5 text-xs text-ink/50">{row.event.sport}</p>
-                          </td>
-                          <td className="px-4 py-3 text-ink/80">
-                            {formatWhen(row.event.startsAt)}
-                          </td>
-                          <td className="px-4 py-3">
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {row.event.sport}
+                            </p>
+                          </TableCell>
+                          <TableCell>{formatWhen(row.event.startsAt)}</TableCell>
+                          <TableCell>
                             <OutcomeBadge outcome={row.outcome} />
-                          </td>
-                          <td className="px-4 py-3 tabular-nums">
+                          </TableCell>
+                          <TableCell className="tabular-nums">
                             <span className="font-medium text-emerald-700">
                               {row.eventWins}
                             </span>
@@ -574,29 +565,28 @@ export function PlayerDetailPage() {
                             </span>
                             {' / '}
                             {row.eventDraws}
-                          </td>
-                          <td className="px-4 py-3 tabular-nums">{row.gamesCompleted}</td>
-                          <td className="px-4 py-3 font-semibold tabular-nums text-primary">
+                          </TableCell>
+                          <TableCell>{row.gamesCompleted}</TableCell>
+                          <TableCell className="font-semibold text-primary">
                             {row.pointsEarned}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
-                  </tbody>
-                </table>
-              </DataTable>
+                  </TableBody>
+                </Table>
               </div>
 
-              <div className="space-y-3 lg:hidden">
+              <div className="space-y-3 p-4 lg:hidden">
                 {regsPending ? (
-                  <p className="py-10 text-center text-sm text-ink/55">Loading…</p>
+                  <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
                 ) : regRows.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-ink/55">No events yet</p>
+                  <p className="py-10 text-center text-sm text-muted-foreground">No events yet</p>
                 ) : (
                   regRows.map((row: PlayerRegistrationRow) => (
                     <article
                       key={row.id}
-                      className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+                      className="rounded-lg border border-line p-4"
                     >
                       <Link
                         to={`/admin/events/${row.event.id}`}
@@ -604,29 +594,23 @@ export function PlayerDetailPage() {
                       >
                         {row.event.name}
                       </Link>
-                      <p className="mt-0.5 text-xs text-ink/50">{row.event.sport}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{row.event.sport}</p>
                       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                            Date
-                          </dt>
-                          <dd className="mt-0.5 font-medium text-ink/80">
+                          <dt className="text-xs text-muted-foreground">Date</dt>
+                          <dd className="mt-0.5 font-medium">
                             {formatWhen(row.event.startsAt)}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                            Outcome
-                          </dt>
+                          <dt className="text-xs text-muted-foreground">Outcome</dt>
                           <dd className="mt-0.5">
                             <OutcomeBadge outcome={row.outcome} />
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                            W / L / D
-                          </dt>
-                          <dd className="mt-0.5 tabular-nums font-medium text-ink/80">
+                          <dt className="text-xs text-muted-foreground">W / L / D</dt>
+                          <dd className="mt-0.5 tabular-nums font-medium">
                             <span className="text-emerald-700">{row.eventWins}</span>
                             {' / '}
                             <span className="text-red-700">{row.eventLosses}</span>
@@ -635,10 +619,8 @@ export function PlayerDetailPage() {
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                            Points
-                          </dt>
-                          <dd className="mt-0.5 font-semibold tabular-nums text-primary">
+                          <dt className="text-xs text-muted-foreground">Points</dt>
+                          <dd className="mt-0.5 font-semibold text-primary">
                             {row.pointsEarned}
                           </dd>
                         </div>
@@ -647,48 +629,47 @@ export function PlayerDetailPage() {
                   ))
                 )}
               </div>
+            </CardContent>
+          </Card>
 
-              {regTotalPages > 1 ? (
-                <div className="mt-4">
-                  <Pagination
-                    page={regPage}
-                    totalPages={regTotalPages}
-                    total={regTotal}
-                    onPageChange={setRegPage}
-                  />
-                </div>
-              ) : null}
-            </>
+          {regTotalPages > 1 ? (
+            <Pagination
+              page={regPage}
+              totalPages={regTotalPages}
+              total={regTotal}
+              onPageChange={setRegPage}
+            />
           ) : null}
+        </TabsContent>
 
-          {activeTab === 'matches' ? (
-            <>
+        <TabsContent value="matches" className="mt-4 space-y-4">
+          <Card>
+            <CardContent className="p-0">
               <div className="hidden lg:block">
-                <DataTable>
-                  <table className="w-full min-w-[800px] text-left text-sm">
-                  <thead className="border-b border-line bg-accent/50 text-ink/70">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Event</th>
-                      <th className="px-4 py-3 font-semibold">Round</th>
-                      <th className="px-4 py-3 font-semibold">Opponent</th>
-                      <th className="px-4 py-3 font-semibold">Color</th>
-                      <th className="px-4 py-3 font-semibold">Result</th>
-                      <th className="px-4 py-3 font-semibold">Rating Δ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Round</TableHead>
+                      <TableHead>Opponent</TableHead>
+                      <TableHead>Color</TableHead>
+                      <TableHead>Result</TableHead>
+                      <TableHead>Rating Δ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {matchesPending ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-ink/55">
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                           Loading…
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : matchRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-ink/55">
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                           No chess matches recorded
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       matchRows.map((match) => {
                         const opponent = opponentFor(match, id)
@@ -696,11 +677,8 @@ export function PlayerDetailPage() {
                           match.white.userId === id ? match.white : match.black
                         const result = matchResultForPlayer(match, id)
                         return (
-                          <tr
-                            key={match.id}
-                            className="border-b border-line/40 last:border-0"
-                          >
-                            <td className="px-4 py-3">
+                          <TableRow key={match.id}>
+                            <TableCell>
                               {match.event ? (
                                 <Link
                                   to={`/admin/events/${match.event.id}`}
@@ -711,41 +689,39 @@ export function PlayerDetailPage() {
                               ) : (
                                 '—'
                               )}
-                            </td>
-                            <td className="px-4 py-3 tabular-nums text-ink/80">
+                            </TableCell>
+                            <TableCell className="tabular-nums">
                               {match.roundNumber != null
                                 ? `R${match.roundNumber}${match.batchNumber != null ? ` · B${match.batchNumber}` : ''}`
                                 : '—'}
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell>
                               {opponent ? (
-                                <Link
-                                  to={`/admin/players/${opponent.user.id}`}
-                                  className="font-semibold text-primary hover:underline"
-                                >
-                                  {displayName(
-                                    opponent.user.firstName,
-                                    opponent.user.lastName,
-                                  )}
-                                </Link>
+                                <>
+                                  <Link
+                                    to={`/admin/players/${opponent.user.id}`}
+                                    className="font-semibold text-primary hover:underline"
+                                  >
+                                    {displayName(
+                                      opponent.user.firstName,
+                                      opponent.user.lastName,
+                                    )}
+                                  </Link>
+                                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                    {formatUniqueCode(opponent.user.username)}
+                                  </p>
+                                </>
                               ) : (
                                 '—'
                               )}
-                              {opponent ? (
-                                <p className="mt-0.5 font-mono text-xs text-ink/45">
-                                  {formatUniqueCode(opponent.user.username)}
-                                </p>
-                              ) : null}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="rounded-md bg-accent/60 px-2 py-0.5 text-xs font-semibold text-ink/75">
-                                {playerColor(match, id)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{playerColor(match, id)}</Badge>
+                            </TableCell>
+                            <TableCell>
                               <MatchResultBadge result={result} />
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell>
                               {side.ratingDelta != null ? (
                                 <span
                                   className={`font-bold tabular-nums ${
@@ -753,7 +729,7 @@ export function PlayerDetailPage() {
                                       ? 'text-emerald-700'
                                       : side.ratingDelta < 0
                                         ? 'text-red-700'
-                                        : 'text-ink/60'
+                                        : 'text-muted-foreground'
                                   }`}
                                 >
                                   {side.ratingDelta > 0
@@ -763,21 +739,20 @@ export function PlayerDetailPage() {
                               ) : (
                                 '—'
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )
                       })
                     )}
-                  </tbody>
-                </table>
-              </DataTable>
+                  </TableBody>
+                </Table>
               </div>
 
-              <div className="space-y-3 lg:hidden">
+              <div className="space-y-3 p-4 lg:hidden">
                 {matchesPending ? (
-                  <p className="py-10 text-center text-sm text-ink/55">Loading…</p>
+                  <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
                 ) : matchRows.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-ink/55">
+                  <p className="py-10 text-center text-sm text-muted-foreground">
                     No chess matches recorded
                   </p>
                 ) : (
@@ -789,7 +764,7 @@ export function PlayerDetailPage() {
                     return (
                       <article
                         key={match.id}
-                        className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+                        className="rounded-lg border border-line p-4"
                       >
                         {match.event ? (
                           <Link
@@ -801,17 +776,15 @@ export function PlayerDetailPage() {
                         ) : (
                           <p className="font-semibold text-ink">—</p>
                         )}
-                        <p className="mt-1 text-sm text-ink/60">
+                        <p className="mt-1 text-sm text-muted-foreground">
                           {match.roundNumber != null
                             ? `Round ${match.roundNumber}${match.batchNumber != null ? ` · Batch ${match.batchNumber}` : ''}`
                             : 'Round —'}
                         </p>
                         <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                           <div className="col-span-2">
-                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                              Opponent
-                            </dt>
-                            <dd className="mt-0.5 font-medium text-ink/80">
+                            <dt className="text-xs text-muted-foreground">Opponent</dt>
+                            <dd className="mt-0.5 font-medium">
                               {opponent ? (
                                 <Link
                                   to={`/admin/players/${opponent.user.id}`}
@@ -828,25 +801,19 @@ export function PlayerDetailPage() {
                             </dd>
                           </div>
                           <div>
-                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                              Color
-                            </dt>
-                            <dd className="mt-0.5 font-medium text-ink/80">
+                            <dt className="text-xs text-muted-foreground">Color</dt>
+                            <dd className="mt-0.5 font-medium">
                               {playerColor(match, id)}
                             </dd>
                           </div>
                           <div>
-                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                              Result
-                            </dt>
+                            <dt className="text-xs text-muted-foreground">Result</dt>
                             <dd className="mt-0.5">
                               <MatchResultBadge result={result} />
                             </dd>
                           </div>
                           <div>
-                            <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-                              Rating Δ
-                            </dt>
+                            <dt className="text-xs text-muted-foreground">Rating Δ</dt>
                             <dd className="mt-0.5 font-bold tabular-nums">
                               {side.ratingDelta != null ? (
                                 <span
@@ -855,7 +822,7 @@ export function PlayerDetailPage() {
                                       ? 'text-emerald-700'
                                       : side.ratingDelta < 0
                                         ? 'text-red-700'
-                                        : 'text-ink/60'
+                                        : 'text-muted-foreground'
                                   }
                                 >
                                   {side.ratingDelta > 0
@@ -873,21 +840,19 @@ export function PlayerDetailPage() {
                   })
                 )}
               </div>
+            </CardContent>
+          </Card>
 
-              {matchTotalPages > 1 ? (
-                <div className="mt-4">
-                  <Pagination
-                    page={matchPage}
-                    totalPages={matchTotalPages}
-                    total={matchTotal}
-                    onPageChange={setMatchPage}
-                  />
-                </div>
-              ) : null}
-            </>
+          {matchTotalPages > 1 ? (
+            <Pagination
+              page={matchPage}
+              totalPages={matchTotalPages}
+              total={matchTotal}
+              onPageChange={setMatchPage}
+            />
           ) : null}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

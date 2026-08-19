@@ -24,6 +24,33 @@ import { PlayerIdentity } from '../PlayerIdentity'
 import { organizerEventsKeys } from '../../lib/queries/organizerEvents'
 import type { SportEvent } from '../../lib/types'
 import { displayName } from '../../lib/displayName'
+import { toast } from '@/stores/useToastStore'
+
+function Spinner({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={`animate-spin ${className}`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  )
+}
 
 function playerName(p: ChessMatchRow['white']) {
   return displayName(p.user.firstName, p.user.lastName)
@@ -462,6 +489,8 @@ export function ChessMatchmakingPanel({
   )
   const [subTabSeeded, setSubTabSeeded] = useState(false)
   const [savingMatchIds, setSavingMatchIds] = useState<Set<string>>(() => new Set())
+  const [isFinalizingTournament, setIsFinalizingTournament] = useState(false)
+  const [isSyncingAfterScore, setIsSyncingAfterScore] = useState(false)
   const finalizeInFlightRef = useRef(false)
   const savingMatchIdsRef = useRef<Set<string>>(new Set())
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -539,10 +568,11 @@ export function ChessMatchmakingPanel({
   }
 
   function scheduleDebouncedSync() {
+    setIsSyncingAfterScore(true)
     if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
     refetchTimerRef.current = setTimeout(() => {
       refetchTimerRef.current = null
-      void syncAfterScoring()
+      void syncAfterScoring().finally(() => setIsSyncingAfterScore(false))
     }, 400)
   }
 
@@ -551,7 +581,13 @@ export function ChessMatchmakingPanel({
     queryClient.setQueryData(
       organizerEventsKeys.detail(event.id),
       (old: SportEvent | undefined) =>
-        old ? { ...old, matchmakingStatus: 'COMPLETED' } : old,
+        old
+          ? {
+              ...old,
+              matchmakingStatus: 'COMPLETED',
+              status: 'COMPLETED',
+            }
+          : old,
     )
   }
 
@@ -580,6 +616,7 @@ export function ChessMatchmakingPanel({
         data.matchmakingStatus === 'COMPLETED'
       ) {
         applyCompletedStatus(data as ChessMatchmakingStatus)
+        toast.success('Tournament complete!')
       }
       await invalidateAll()
     },
@@ -589,6 +626,7 @@ export function ChessMatchmakingPanel({
         if (recovered.matchmakingStatus === 'COMPLETED') {
           applyCompletedStatus(recovered)
           setActionError('')
+          toast.success('Tournament complete!')
           await invalidateAll()
           return
         }
@@ -635,6 +673,7 @@ export function ChessMatchmakingPanel({
     if (!allDone || !batchReady || nextBatchMutation.isPending) return
 
     finalizeInFlightRef.current = true
+    setIsFinalizingTournament(true)
     try {
       await nextBatchMutation.mutateAsync()
     } catch {
@@ -645,10 +684,12 @@ export function ChessMatchmakingPanel({
       if (recovered?.matchmakingStatus === 'COMPLETED') {
         applyCompletedStatus(recovered)
         setActionError('')
+        toast.success('Tournament complete!')
         await invalidateAll()
       }
     } finally {
       finalizeInFlightRef.current = false
+      setIsFinalizingTournament(false)
     }
   }
 
@@ -913,7 +954,9 @@ export function ChessMatchmakingPanel({
   const busy =
     startMutation.isPending ||
     nextBatchMutation.isPending ||
-    withdrawMutation.isPending
+    withdrawMutation.isPending ||
+    isFinalizingTournament ||
+    isSyncingAfterScore
 
   const readyCount = status?.playerProgress.filter((p) => !p.withdrawn).length
     ?? presentCount
@@ -943,6 +986,21 @@ export function ChessMatchmakingPanel({
     }
     setSubTabSeeded(true)
   }, [status, mmStatus, tournamentComplete, subTabSeeded])
+
+  useEffect(() => {
+    if (mmStatus === 'COMPLETED') {
+      setSubTab('standings')
+    }
+  }, [mmStatus])
+
+  const showFinalizingBanner =
+    isFinalizingTournament ||
+    (nextBatchMutation.isPending && allPlayersFinished)
+
+  const showCheckingBanner =
+    isSyncingAfterScore &&
+    !showFinalizingBanner &&
+    allPlayersFinished
 
   const showWorkspaceTabs = mmStatus !== 'NOT_STARTED'
   const pastCount = pastMatchGroups.reduce(
@@ -1067,9 +1125,30 @@ export function ChessMatchmakingPanel({
             </div>
           ) : null}
 
+          {showFinalizingBanner ? (
+            <div
+              className="mt-4 flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm font-medium text-primary"
+              role="status"
+              aria-live="polite"
+            >
+              <Spinner className="h-5 w-5 shrink-0" />
+              All games complete — saving final results…
+            </div>
+          ) : showCheckingBanner ? (
+            <div
+              className="mt-4 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+              role="status"
+              aria-live="polite"
+            >
+              <Spinner className="h-5 w-5 shrink-0" />
+              Checking tournament status…
+            </div>
+          ) : null}
+
           {mmStatus === 'COMPLETED' ? (
             <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm font-medium text-emerald-900">
-              Every player has played {gamesPerPlayer} games. Results saved.
+              Tournament complete — every player has played {gamesPerPlayer}{' '}
+              games. Results saved. See final standings below.
             </div>
           ) : null}
 
@@ -1219,12 +1298,17 @@ export function ChessMatchmakingPanel({
             ) : (
               <GlassPanel className="overflow-hidden p-0">
                 <div className="px-5 py-4 sm:px-6">
-                  <h3 className="text-base font-semibold text-ink">Standings</h3>
+                  <h3 className="text-base font-semibold text-ink">
+                    {mmStatus === 'COMPLETED' ? 'Final standings' : 'Standings'}
+                  </h3>
                   <p className="mt-0.5 text-sm text-ink/50">
-                    {activeStandings} active
-                    {sortedProgress.some((p) => p.withdrawn)
-                      ? ` · ${sortedProgress.filter((p) => p.withdrawn).length} left`
-                      : ''}
+                    {mmStatus === 'COMPLETED'
+                      ? `Tournament complete — ${activeStandings} players ranked`
+                      : `${activeStandings} active${
+                          sortedProgress.some((p) => p.withdrawn)
+                            ? ` · ${sortedProgress.filter((p) => p.withdrawn).length} left`
+                            : ''
+                        }`}
                   </p>
                 </div>
                 <div className="grid gap-3 border-t border-line/60 p-5 sm:grid-cols-2 lg:grid-cols-3 sm:px-6">

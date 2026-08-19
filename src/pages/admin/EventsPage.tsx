@@ -16,7 +16,8 @@ import {
   type MatchOutcome,
 } from '../../lib/queries/events'
 import type { EventStatus, SportEvent } from '../../lib/types'
-import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/layout/FilterBar'
 import { toast } from '../../stores/useToastStore'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -36,7 +37,7 @@ function formatWhen(iso: string) {
 export function EventsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const search = useAdminSearchStore((state) => state.events)
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
@@ -134,35 +135,37 @@ export function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-            Events
-          </h1>
-          <p className="mt-1.5 text-sm text-ink/55">
-            Create, schedule, and publish sports events
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <SelectInput
-            className="w-40"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as EventStatus | '')
-              setPage(1)
-            }}
-          >
-            <option value="">All statuses</option>
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </SelectInput>
-          <Button type="button" onClick={() => navigate('/admin/events/new')}>
-            Create event
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Events"
+        description="Create, schedule, and publish sports events"
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <SelectInput
+              className="w-40"
+              value={statusFilter}
+              onChange={(ev) => {
+                setStatusFilter(ev.target.value as EventStatus | '')
+                setPage(1)
+              }}
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </SelectInput>
+            <Button type="button" onClick={() => navigate('/admin/events/new')}>
+              Create event
+            </Button>
+          </div>
+        }
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search events…"
+      />
 
       <GlassPanel strong className="overflow-hidden">
         <div className="hidden min-h-[28rem] overflow-x-auto lg:block">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { GlassPanel, Skeleton } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { resolveAssetUrl } from '../../lib/api'
 import {
   fetchOrganizerHistory,
@@ -74,19 +74,46 @@ function HistoryDetails({ event }: { event: OrganizerEventSummary }) {
   )
 }
 
+function HistoryStatusBadge({ status }: { status: string }) {
+  const styles =
+    status === 'COMPLETED'
+      ? 'bg-sky-100 text-sky-800'
+      : status === 'CANCELLED'
+        ? 'bg-red-100 text-red-700'
+        : 'bg-ink/10 text-ink/60'
+
+  const label =
+    status === 'COMPLETED'
+      ? 'Completed'
+      : status === 'CANCELLED'
+        ? 'Cancelled'
+        : status
+
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles}`}>
+      {label}
+    </span>
+  )
+}
+
 function HistoryCard({ event }: { event: OrganizerEventSummary }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/55 shadow-sm">
+    <article
+      className="flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm"
+    >
       <div className="aspect-[16/10] w-full overflow-hidden border-b border-line/40">
         <EventThumbnail event={event} />
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <h2 className="text-lg font-semibold leading-tight text-ink">
-          {event.name}
-        </h2>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="text-lg font-semibold leading-tight text-ink">
+            {event.name}
+          </h2>
+          <HistoryStatusBadge status={event.status} />
+        </div>
         <HistoryDetails event={event} />
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -94,8 +121,13 @@ function HistoryListRow({ event }: { event: OrganizerEventSummary }) {
   const location = formatLocation(event)
 
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-ink">{event.name}</h2>
+    <article
+      className="rounded-2xl border border-line bg-card p-5 shadow-sm"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h2 className="text-lg font-semibold text-ink">{event.name}</h2>
+        <HistoryStatusBadge status={event.status} />
+      </div>
       <dl className="mt-3 grid grid-cols-1 gap-2 text-sm text-ink/55 sm:grid-cols-2 md:grid-cols-3">
         {location ? (
           <div>
@@ -120,7 +152,7 @@ function HistoryListRow({ event }: { event: OrganizerEventSummary }) {
           </dd>
         </div>
       </dl>
-    </div>
+    </article>
   )
 }
 
@@ -192,25 +224,15 @@ export function OrganizerHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Link
-            to="/organizer"
-            className="text-sm font-semibold text-primary transition hover:text-primary-hover"
-          >
-            ← Back to my events
-          </Link>
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-ink">
-            Event history
-          </h1>
-          <p className="mt-1.5 text-sm text-ink/55">
-            Past events you helped with. Basic details only.
-          </p>
-        </div>
-        {!isPending && !isError && events.length > 0 ? (
-          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
-        ) : null}
-      </div>
+      <PageHeader
+        title="Event history"
+        description="Past events you helped conduct."
+        actions={
+          !isPending && !isError && events.length > 0 ? (
+            <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+          ) : null
+        }
+      />
 
       {isPending ? (
         viewMode === 'cards' ? (
