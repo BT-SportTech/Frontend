@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
 import { ChessMatchmakingPanel } from '../../components/chess/ChessMatchmakingPanel'
-import { GlassPanel, Skeleton, TabBar, TextInput } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/layout/FilterBar'
+import { StatGrid } from '@/components/layout/StatGrid'
+import { EmptyState } from '@/components/layout/EmptyState'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Stepper } from '@/components/ui/Stepper'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import {
   fetchOrganizerEvent,
   fetchOrganizerRegistrations,
@@ -24,34 +35,49 @@ function initials(first: string, last: string) {
   return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase()
 }
 
-function Spinner({ className = '' }: { className?: string }) {
-  return (
-    <svg
-      className={`animate-spin ${className}`}
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      aria-hidden
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  )
-}
-
 type AttendanceFilter = 'all' | 'present' | 'absent'
 type MainTab = 'checkin' | 'matchmaking'
+
+const FILTER_OPTIONS: { key: AttendanceFilter; label: string }[] = [
+  { key: 'all', label: 'All players' },
+  { key: 'present', label: 'Present' },
+  { key: 'absent', label: 'Not checked in' },
+]
+
+function ChessWorkflowStepper({
+  gamesPerPlayer,
+  currentStep,
+}: {
+  gamesPerPlayer: number
+  currentStep: number
+}) {
+  const steps = [
+    { id: 'checkin', label: 'Check in' },
+    { id: 'games', label: `${gamesPerPlayer} games each` },
+    { id: 'done', label: 'Done' },
+  ]
+
+  return (
+    <Card>
+      <CardContent className="p-5 sm:p-6">
+        <Stepper steps={steps} currentStep={currentStep} />
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+          {steps.map((step, index) => (
+            <span
+              key={step.id}
+              className={cn(
+                'font-semibold',
+                index <= currentStep ? 'text-ink' : 'text-muted-foreground',
+              )}
+            >
+              {step.label}
+            </span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function OrganizerEventDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
@@ -83,8 +109,6 @@ export function OrganizerEventDetailPage() {
     beganAsPastEventRef.current = isPastEvent
   }, [event, isPastEvent])
 
-  const backLink = '/organizer'
-  const backLabel = 'My events'
   const isChess =
     event?.sport?.toLowerCase() === 'chess' ||
     event?.game?.name?.toLowerCase() === 'chess'
@@ -172,354 +196,306 @@ export function OrganizerEventDetailPage() {
     })
   }, [regs, search, filter])
 
-  const step = !matchmakingStarted
-    ? 1
+  const workflowStep = !matchmakingStarted
+    ? 0
     : event?.matchmakingStatus === 'COMPLETED'
-      ? 3
-      : 2
+      ? 2
+      : 1
 
-  const mainTabs = useMemo(() => {
-    const rosterTotal = presentCount + absentCount
-    const tabs: { id: MainTab; label: string; badge?: string | number }[] = [
-      {
-        id: 'checkin',
-        label: 'Check-in',
-        badge: rosterTotal > 0 ? `${presentCount}/${rosterTotal}` : undefined,
-      },
-    ]
-    if (isChess) {
-      tabs.push({
-        id: 'matchmaking',
-        label: 'Matchmaking',
-        badge:
-          event?.matchmakingStatus === 'COMPLETED'
-            ? 'Done'
-            : event?.matchmakingStatus === 'IN_PROGRESS'
-              ? 'Live'
-              : undefined,
-      })
-    }
-    return tabs
-  }, [absentCount, event?.matchmakingStatus, isChess, presentCount])
+  const rosterTotal = presentCount + absentCount
+  const checkinTabLabel =
+    rosterTotal > 0 ? `Check-in ${presentCount}/${rosterTotal}` : 'Check-in'
+
+  const matchmakingTabLabel =
+    event?.matchmakingStatus === 'COMPLETED'
+      ? 'Matchmaking · Done'
+      : event?.matchmakingStatus === 'IN_PROGRESS'
+        ? 'Matchmaking · Live'
+        : 'Matchmaking'
+
+  const eventDescription = event
+    ? [
+        event.sport,
+        event.venue,
+        formatWhen(event.startsAt),
+        isChess && event.boardCount
+          ? `${event.boardCount} boards per set · ${event.gamesPerPlayer ?? 3} games per player`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ''
+
+  const attendanceBadge = windowOpen
+    ? { variant: 'success' as const, label: 'Check-in open' }
+    : opensAt
+      ? { variant: 'warning' as const, label: `Opens ${formatWhen(opensAt)}` }
+      : { variant: 'outline' as const, label: 'Closed' }
 
   if (event && isPastEvent && beganAsPastEventRef.current === true) {
     return <Navigate to="/organizer/history" replace />
   }
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <Link
-          to={backLink}
-          className="text-sm font-semibold text-primary transition hover:text-primary-hover"
-        >
-          ← {backLabel}
-        </Link>
-      </div>
+  const checkInPanel = (
+    <Card>
+      <CardHeader className="border-b border-line pb-4">
+        <CardTitle>Check-in</CardTitle>
+        <CardDescription>
+          Tap a player to mark them present
+          {matchmakingStarted && isChess
+            ? ' · Locked after pairing starts'
+            : ''}
+        </CardDescription>
+      </CardHeader>
 
+      <CardContent className="space-y-4 pt-5">
+        {!windowOpen ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Check-in opens 30 minutes before start
+            {opensAt ? ` (${formatWhen(opensAt)})` : ''}.
+          </p>
+        ) : null}
+
+        {canLoadRegs ? (
+          <StatGrid
+            items={[
+              { label: 'Present', value: presentCount, accent: 'primary' },
+              { label: 'Not checked in', value: absentCount, accent: 'secondary' },
+              ...(withdrawnCount > 0
+                ? [
+                    {
+                      label: 'Withdrawn',
+                      value: withdrawnCount,
+                      accent: 'warning' as const,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        ) : null}
+
+        {canLoadRegs && regs.length > 4 ? (
+          <FilterBar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search players…"
+          >
+            <div className="flex rounded-lg border border-line bg-muted p-0.5">
+              {FILTER_OPTIONS.map(({ key, label }) => (
+                <Button
+                  key={key}
+                  type="button"
+                  variant={filter === key ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setFilter(key)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </FilterBar>
+        ) : null}
+
+        {!canLoadRegs ? (
+          <EmptyState
+            title="Check-in not open yet"
+            description="The player list will appear here when check-in opens."
+          />
+        ) : regsQuery.isPending ? (
+          <div className="space-y-2">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : regsQuery.isError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {regsQuery.error instanceof Error
+              ? regsQuery.error.message
+              : 'Failed to load roster'}
+          </p>
+        ) : regs.length === 0 ? (
+          <EmptyState
+            title="No players registered"
+            description="Players will appear here once they register for this event."
+          />
+        ) : filteredRegs.length === 0 ? (
+          <EmptyState
+            title="No players match your filter"
+            description="Try a different search term or filter."
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredRegs.map((row) => {
+              const present = Boolean(row.attendedAt)
+              const withdrawn = Boolean(row.withdrawnAt)
+              const busy = pendingIds.has(row.id)
+              const lockAttendance = isChess && matchmakingStarted
+              const canToggle =
+                windowOpen && !lockAttendance && !withdrawn
+
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  disabled={!canToggle || busy}
+                  onClick={() => {
+                    if (busy) return
+                    attendanceMutation.mutate({
+                      registrationId: row.id,
+                      attended: !present,
+                    })
+                  }}
+                  className={cn(
+                    'flex flex-col rounded-xl border p-4 text-left shadow-sm transition',
+                    canToggle && !busy
+                      ? 'hover:border-primary/30 hover:bg-primary/[0.03] active:scale-[0.99]'
+                      : 'cursor-default',
+                    busy
+                      ? 'border-primary/20 bg-primary/[0.04]'
+                      : present && !withdrawn
+                        ? 'border-emerald-200 bg-emerald-50/50'
+                        : withdrawn
+                          ? 'border-red-200/60 bg-red-50/30'
+                          : 'border-line bg-card',
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={cn(
+                        'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                        busy
+                          ? 'bg-primary/15 text-primary'
+                          : withdrawn
+                            ? 'bg-red-100 text-red-700'
+                            : present
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {busy ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : present && !withdrawn ? (
+                        '✓'
+                      ) : (
+                        initials(row.user.firstName, row.user.lastName)
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold leading-tight text-ink">
+                        {displayName(
+                          row.user.firstName,
+                          row.user.lastName,
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        <span>Unique Code:</span>{' '}
+                        <span className="font-mono font-semibold tracking-wide text-ink/70">
+                          {formatUniqueCode(row.user.username)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      'mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold',
+                      busy
+                        ? 'bg-primary/10 text-primary'
+                        : withdrawn
+                          ? 'bg-red-100 text-red-700'
+                          : present
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    {busy ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {present ? 'Updating…' : 'Checking in…'}
+                      </>
+                    ) : withdrawn ? (
+                      'Withdrawn'
+                    ) : present ? (
+                      'Present'
+                    ) : (
+                      'Tap to check in'
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {attendanceMutation.isError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {attendanceMutation.error instanceof Error
+              ? attendanceMutation.error.message
+              : 'Could not update attendance'}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <div className="space-y-6">
       {eventQuery.isPending ? (
-        <Skeleton className="h-28 w-full rounded-2xl" />
+        <div className="space-y-6">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-12 w-full max-w-md" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       ) : eventQuery.isError || !event ? (
-        <p className="rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {eventQuery.error instanceof Error
             ? eventQuery.error.message
             : 'Event not found'}
         </p>
       ) : (
-        <GlassPanel className="overflow-hidden p-0">
-          <div className="px-5 py-5 sm:px-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                  {event.name}
-                </h1>
-                <p className="mt-1 text-sm text-ink/55">
-                  {event.sport} · {event.venue}
-                </p>
-                <p className="mt-0.5 text-sm text-ink/45">
-                  {formatWhen(event.startsAt)}
-                  {isChess && event.boardCount
-                    ? ` · ${event.boardCount} boards per set · ${event.gamesPerPlayer ?? 3} games per player`
-                    : ''}
-                </p>
-              </div>
-              <span
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
-                  windowOpen
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-ink/8 text-ink/55'
-                }`}
-              >
-                {windowOpen
-                  ? 'Check-in open'
-                  : opensAt
-                    ? `Opens ${formatWhen(opensAt)}`
-                    : 'Closed'}
-              </span>
-            </div>
+        <>
+          <PageHeader
+            title={event.name}
+            description={eventDescription}
+            actions={
+              <Badge variant={attendanceBadge.variant}>
+                {attendanceBadge.label}
+              </Badge>
+            }
+          />
 
-            {isChess ? (
-              <div className="mt-5 flex items-center gap-0 overflow-x-auto pb-1">
-                {[
-                  { n: 1, label: 'Check in' },
-                  { n: 2, label: `${event.gamesPerPlayer ?? 3} games each` },
-                  { n: 3, label: 'Done' },
-                ].map((s, idx) => {
-                  const active = step === s.n
-                  const done = step > s.n
-                  return (
-                    <div key={s.n} className="flex items-center">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                            done
-                              ? 'bg-primary text-white'
-                              : active
-                                ? 'bg-primary text-white'
-                                : 'bg-ink/8 text-ink/40'
-                          }`}
-                        >
-                          {done ? '✓' : s.n}
-                        </span>
-                        <span
-                          className={`whitespace-nowrap text-sm font-semibold ${
-                            active || done ? 'text-ink' : 'text-ink/35'
-                          }`}
-                        >
-                          {s.label}
-                        </span>
-                      </div>
-                      {idx < 2 ? (
-                        <div
-                          className={`mx-3 h-px w-8 sm:w-12 ${
-                            done ? 'bg-primary' : 'bg-ink/10'
-                          }`}
-                        />
-                      ) : null}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
-          </div>
-        </GlassPanel>
-      )}
-
-      {isChess ? (
-        <TabBar
-          aria-label="Event sections"
-          tabs={mainTabs}
-          value={mainTab}
-          onChange={setMainTab}
-        />
-      ) : null}
-
-      {mainTab === 'checkin' || !isChess ? (
-        <GlassPanel className="overflow-hidden p-0">
-          <div className="px-5 py-4 sm:px-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-lg font-semibold text-ink">Check-in</h2>
-              {canLoadRegs ? (
-                <div className="flex flex-wrap gap-2 text-xs font-bold">
-                  <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-emerald-800">
-                    {presentCount} present
-                  </span>
-                  <span className="rounded-lg bg-ink/8 px-2.5 py-1 text-ink/55">
-                    {absentCount} not checked in
-                  </span>
-                  {withdrawnCount > 0 ? (
-                    <span className="rounded-lg bg-red-100 px-2.5 py-1 text-red-700">
-                      {withdrawnCount} withdrawn
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-            <p className="mt-0.5 text-sm text-ink/50">
-              Tap a player to mark them present
-              {matchmakingStarted && isChess
-                ? ' · Locked after pairing starts'
-                : ''}
-            </p>
-          </div>
-
-          <div className="border-t border-line/60 px-5 pt-3 sm:px-6">
-            {!windowOpen ? (
-              <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-                Check-in opens 30 minutes before start
-                {opensAt ? ` (${formatWhen(opensAt)})` : ''}.
-              </p>
-            ) : null}
-
-            {canLoadRegs && regs.length > 4 ? (
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-                <TextInput
-                  placeholder="Search players…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full sm:max-w-xs"
-                />
-                <div className="flex rounded-lg border border-line bg-white p-0.5">
-                  {(
-                    [
-                      ['all', 'All players'],
-                      ['present', 'Present'],
-                      ['absent', 'Not checked in'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setFilter(key)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                        filter === key
-                          ? 'bg-primary text-white'
-                          : 'text-ink/55 hover:text-ink'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {!canLoadRegs ? (
-            <p className="p-6 text-sm text-ink/55">
-              The player list will appear here when check-in opens.
-            </p>
-          ) : regsQuery.isPending ? (
-            <div className="space-y-2 p-5">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : regsQuery.isError ? (
-            <p className="p-5 text-sm text-red-700">
-              {regsQuery.error instanceof Error
-                ? regsQuery.error.message
-                : 'Failed to load roster'}
-            </p>
-          ) : regs.length === 0 ? (
-            <p className="p-6 text-sm text-ink/50">No players registered yet.</p>
-          ) : filteredRegs.length === 0 ? (
-            <p className="p-6 text-sm text-ink/50">
-              No players match your filter.
-            </p>
-          ) : (
-            <div className="grid gap-3 p-5 pt-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:px-6">
-              {filteredRegs.map((row) => {
-                const present = Boolean(row.attendedAt)
-                const withdrawn = Boolean(row.withdrawnAt)
-                const busy = pendingIds.has(row.id)
-                const lockAttendance = isChess && matchmakingStarted
-                const canToggle =
-                  windowOpen && !lockAttendance && !withdrawn
-
-                return (
-                  <button
-                    key={row.id}
-                    type="button"
-                    disabled={!canToggle || busy}
-                    onClick={() => {
-                      if (busy) return
-                      attendanceMutation.mutate({
-                        registrationId: row.id,
-                        attended: !present,
-                      })
-                    }}
-                    className={`flex flex-col rounded-2xl border p-4 text-left transition ${
-                      canToggle && !busy
-                        ? 'hover:border-primary/30 hover:bg-primary/[0.03] active:scale-[0.99]'
-                        : 'cursor-default'
-                    } ${
-                      busy
-                        ? 'border-primary/20 bg-primary/[0.04]'
-                        : present && !withdrawn
-                          ? 'border-emerald-200 bg-emerald-50/50'
-                          : withdrawn
-                            ? 'border-red-200/60 bg-red-50/30'
-                            : 'border-line/60 bg-white/80'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                          busy
-                            ? 'bg-primary/15 text-primary'
-                            : withdrawn
-                              ? 'bg-red-100 text-red-700'
-                              : present
-                                ? 'bg-emerald-500 text-white'
-                                : 'bg-ink/8 text-ink/45'
-                        }`}
-                      >
-                        {busy ? (
-                          <Spinner className="h-5 w-5" />
-                        ) : present && !withdrawn ? (
-                          '✓'
-                        ) : (
-                          initials(row.user.firstName, row.user.lastName)
-                        )}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold leading-tight text-ink">
-                          {displayName(
-                            row.user.firstName,
-                            row.user.lastName,
-                          )}
-                        </p>
-                        <p className="mt-0.5 text-xs text-ink/55">
-                          <span className="text-ink/45">Unique Code:</span>{' '}
-                          <span className="font-mono font-semibold tracking-wide text-ink/70">
-                            {formatUniqueCode(row.user.username)}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold ${
-                        busy
-                          ? 'bg-primary/10 text-primary'
-                          : withdrawn
-                            ? 'bg-red-100 text-red-700'
-                            : present
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-ink/8 text-ink/45'
-                      }`}
-                    >
-                      {busy ? (
-                        <>
-                          <Spinner className="h-3.5 w-3.5" />
-                          {present ? 'Updating…' : 'Checking in…'}
-                        </>
-                      ) : withdrawn ? (
-                        'Withdrawn'
-                      ) : present ? (
-                        'Present'
-                      ) : (
-                        'Tap to check in'
-                      )}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {attendanceMutation.isError ? (
-            <p className="border-t border-red-100 bg-red-50/80 px-5 py-3 text-sm text-red-700">
-              {attendanceMutation.error instanceof Error
-                ? attendanceMutation.error.message
-                : 'Could not update attendance'}
-            </p>
+          {isChess ? (
+            <ChessWorkflowStepper
+              gamesPerPlayer={event.gamesPerPlayer ?? 3}
+              currentStep={workflowStep}
+            />
           ) : null}
-        </GlassPanel>
-      ) : null}
 
-      {event && isChess && mainTab === 'matchmaking' ? (
-        <ChessMatchmakingPanel event={event} presentCount={presentCount} />
-      ) : null}
+          {isChess ? (
+            <Tabs
+              value={mainTab}
+              onValueChange={(value) => setMainTab(value as MainTab)}
+            >
+              <TabsList>
+                <TabsTrigger value="checkin">{checkinTabLabel}</TabsTrigger>
+                <TabsTrigger value="matchmaking">
+                  {matchmakingTabLabel}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="checkin">{checkInPanel}</TabsContent>
+
+              <TabsContent value="matchmaking">
+                <ChessMatchmakingPanel
+                  event={event}
+                  presentCount={presentCount}
+                />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            checkInPanel
+          )}
+        </>
+      )}
     </div>
   )
 }
