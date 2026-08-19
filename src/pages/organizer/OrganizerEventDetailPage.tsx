@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChessMatchmakingPanel } from '../../components/chess/ChessMatchmakingPanel'
-import { PlayerIdentity } from '../../components/PlayerIdentity'
 import { GlassPanel, Skeleton, TabBar, TextInput } from '../../components/ui'
 import {
   fetchOrganizerEvent,
@@ -173,7 +172,7 @@ export function OrganizerEventDetailPage() {
       if (filter === 'absent' && row.attendedAt) return false
       if (!q) return true
       const name =
-        `${displayName(row.user.firstName, row.user.lastName)} ${row.user.username}`.toLowerCase()
+        `${displayName(row.user.firstName, row.user.lastName)} ${row.user.username ?? ''}`.toLowerCase()
       return name.includes(q)
     })
   }, [regs, search, filter])
@@ -538,17 +537,12 @@ export function OrganizerEventDetailPage() {
                         )}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <PlayerIdentity
-                          username={row.user.username}
-                          firstName={row.user.firstName}
-                          lastName={row.user.lastName}
-                          totalPoints={row.user.totalPoints}
-                        />
-                        {typeof row.chessRating === 'number' ? (
-                          <p className="mt-1 text-xs font-semibold text-ink/55">
-                            Rating {row.chessRating}
-                          </p>
-                        ) : null}
+                        <p className="font-semibold leading-tight text-ink">
+                          {displayName(
+                            row.user.firstName,
+                            row.user.lastName,
+                          )}
+                        </p>
                       </div>
                     </div>
                     <span
