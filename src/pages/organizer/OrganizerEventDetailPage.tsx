@@ -85,12 +85,32 @@ export function OrganizerEventDetailPage() {
     queryKey: organizerEventsKeys.detail(id),
     queryFn: () => fetchOrganizerEvent(id),
     enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!data || data.attendanceWindowOpen) return false
+      return 30_000
+    },
   })
+
+  const event = eventQuery.data
+  const isPastEvent =
+    event?.status === 'COMPLETED' || event?.status === 'CANCELLED'
+  const backLink = isPastEvent ? '/organizer/history' : '/organizer'
+  const backLabel = isPastEvent ? 'Event history' : 'My events'
+  const isChess =
+    event?.sport?.toLowerCase() === 'chess' ||
+    event?.game?.name?.toLowerCase() === 'chess'
+  const matchmakingStarted =
+    event?.matchmakingStatus === 'IN_PROGRESS' ||
+    event?.matchmakingStatus === 'COMPLETED'
+  const windowOpenFromEvent = event?.attendanceWindowOpen ?? false
+  const opensAtFromEvent = event?.attendanceOpensAt ?? null
+  const canLoadRegs = windowOpenFromEvent || isPastEvent
 
   const regsQuery = useQuery({
     queryKey: organizerEventsKeys.registrations(id),
     queryFn: () => fetchOrganizerRegistrations(id),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && canLoadRegs,
   })
 
   function markPending(registrationId: string, pending: boolean) {
@@ -127,22 +147,10 @@ export function OrganizerEventDetailPage() {
     },
   })
 
-  const event = eventQuery.data
-  const regs = regsQuery.data?.data ?? []
-  const isPastEvent =
-    event?.status === 'COMPLETED' || event?.status === 'CANCELLED'
-  const backLink = isPastEvent ? '/organizer/history' : '/organizer'
-  const backLabel = isPastEvent ? 'Event history' : 'My events'
-  const isChess =
-    event?.sport?.toLowerCase() === 'chess' ||
-    event?.game?.name?.toLowerCase() === 'chess'
-  const matchmakingStarted =
-    event?.matchmakingStatus === 'IN_PROGRESS' ||
-    event?.matchmakingStatus === 'COMPLETED'
+  const regs = canLoadRegs ? (regsQuery.data?.data ?? []) : []
   const windowOpen =
-    regsQuery.data?.attendanceWindowOpen ?? event?.attendanceWindowOpen ?? false
-  const opensAt =
-    regsQuery.data?.attendanceOpensAt ?? event?.attendanceOpensAt ?? null
+    regsQuery.data?.attendanceWindowOpen ?? windowOpenFromEvent
+  const opensAt = regsQuery.data?.attendanceOpensAt ?? opensAtFromEvent
 
   const presentCount = regs.filter(
     (r) => r.attendedAt && !r.withdrawnAt,
@@ -170,12 +178,11 @@ export function OrganizerEventDetailPage() {
     })
   }, [regs, search, filter])
 
-  const step =
-    !matchmakingStarted
-      ? 1
-      : event?.matchmakingStatus === 'COMPLETED'
-        ? 3
-        : 2
+  const step = !matchmakingStarted
+    ? 1
+    : event?.matchmakingStatus === 'COMPLETED'
+      ? 3
+      : 2
 
   const mainTabs = useMemo(() => {
     const rosterTotal = presentCount + absentCount
@@ -384,19 +391,21 @@ export function OrganizerEventDetailPage() {
           <div className="px-5 py-4 sm:px-6">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-lg font-semibold text-ink">Check-in</h2>
-              <div className="flex flex-wrap gap-2 text-xs font-bold">
-                <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-emerald-800">
-                  {presentCount} present
-                </span>
-                <span className="rounded-lg bg-ink/8 px-2.5 py-1 text-ink/55">
-                  {absentCount} not checked in
-                </span>
-                {withdrawnCount > 0 ? (
-                  <span className="rounded-lg bg-red-100 px-2.5 py-1 text-red-700">
-                    {withdrawnCount} withdrawn
+              {canLoadRegs ? (
+                <div className="flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-emerald-800">
+                    {presentCount} present
                   </span>
-                ) : null}
-              </div>
+                  <span className="rounded-lg bg-ink/8 px-2.5 py-1 text-ink/55">
+                    {absentCount} not checked in
+                  </span>
+                  {withdrawnCount > 0 ? (
+                    <span className="rounded-lg bg-red-100 px-2.5 py-1 text-red-700">
+                      {withdrawnCount} withdrawn
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <p className="mt-0.5 text-sm text-ink/50">
               {isPastEvent
@@ -416,7 +425,7 @@ export function OrganizerEventDetailPage() {
               </p>
             ) : null}
 
-            {regs.length > 4 ? (
+            {canLoadRegs && regs.length > 4 ? (
               <div className="mb-3 flex flex-wrap gap-2">
                 <TextInput
                   placeholder="Search players…"
@@ -450,7 +459,11 @@ export function OrganizerEventDetailPage() {
             ) : null}
           </div>
 
-          {regsQuery.isPending ? (
+          {!canLoadRegs ? (
+            <p className="p-6 text-sm text-ink/55">
+              The player list will appear here when check-in opens.
+            </p>
+          ) : regsQuery.isPending ? (
             <div className="space-y-2 p-5">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />

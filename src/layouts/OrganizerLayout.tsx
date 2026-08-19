@@ -107,7 +107,7 @@ export function OrganizerLayout() {
           </NavLink>
           <NavLink
             to="/organizer/history"
-            title="History"
+            title="Event history"
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-lg py-2.5 text-sm font-semibold transition ${
                 collapsed ? 'justify-center px-0' : 'px-3'
@@ -177,10 +177,8 @@ export function OrganizerLayout() {
       </aside>
 
       <main className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-10 border-b border-line px-6 py-5 lg:px-8">
-          <p className="text-base font-semibold text-ink/60">
-            Event organiser workspace
-          </p>
+        <header className="glass sticky top-0 z-10 border-b border-white/60 px-6 py-5 backdrop-blur-xl lg:px-8">
+          <p className="text-base font-semibold text-ink/60">Check-in</p>
         </header>
         <div className="animate-fade-in flex-1 p-6 lg:p-8">
           <Outlet />
