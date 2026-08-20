@@ -106,9 +106,9 @@ export function SchoolFormStepper({
   }
 
   function validateStep(currentStep: number): boolean {
-    const error =
-      validateWizardStep?.(currentStep) ??
-      defaultValidateStep(currentStep, form, resolveFormStep(currentStep))
+    const error = validateWizardStep
+      ? validateWizardStep(currentStep)
+      : defaultValidateStep(currentStep, form, resolveFormStep(currentStep))
     if (error) {
       setStepError(error)
       return false
