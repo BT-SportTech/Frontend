@@ -73,6 +73,8 @@ export type ChessMatchmakingStatus = {
     whiteGames: number
     blackGames: number
     rating: number
+    eventRatingDelta?: number
+    ratingBeforeEvent?: number
   }[]
   rounds: {
     id: string

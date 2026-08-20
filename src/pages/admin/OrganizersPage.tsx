@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, FieldLabel, GlassPanel, TextInput } from '../../components/ui'
+import { Button, FieldLabel, TextInput } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { StatGrid } from '@/components/layout/StatGrid'
+import { Card, CardContent } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Modal } from '../../components/ui/Modal'
 import {
   fetchOrganizers,
@@ -149,124 +153,98 @@ export function OrganizersPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <GlassPanel
-        strong
-        className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-white via-white to-primary/[0.06] p-6 sm:p-8"
-      >
-        <div
-          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-secondary/10 blur-3xl"
-          aria-hidden
-        />
-        <div className="relative flex flex-wrap items-start justify-between gap-5">
-          <div className="flex gap-4">
-            <span
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-gradient-to-br from-primary to-primary-hover text-white shadow-lg shadow-primary/25"
-              aria-hidden
-            >
-              <UsersIcon className="h-6 w-6" />
-            </span>
-            <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-                Organisers
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/60 sm:text-base">
-                Invite employees by email. They set a password from the invite
-                link — there is no self-registration.
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            onClick={openInvite}
-            className="shadow-md shadow-primary/25 !px-5"
-          >
-            <MailIcon className="mr-2 h-4 w-4" />
+      <PageHeader
+        title="Organisers"
+        description="Invite employees by email. They set a password from the invite link — there is no self-registration."
+        actions={
+          <Button type="button" onClick={openInvite}>
             Send invite
           </Button>
-        </div>
-      </GlassPanel>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <SummaryStat
-          label="Active organisers"
-          value={loading ? null : organizers.length}
-          hint="Can be assigned to events"
-          accent="primary"
-          icon={<UserCheckIcon className="h-5 w-5" />}
-        />
-        <SummaryStat
-          label="Pending invites"
-          value={loading ? null : pending.length}
-          hint="Awaiting password setup"
-          accent="amber"
-          icon={<ClockIcon className="h-5 w-5" />}
-        />
-      </div>
+      <StatGrid
+        items={[
+          {
+            label: 'Active organisers',
+            value: loading ? '—' : organizers.length,
+            hint: 'Can be assigned to events',
+            accent: 'primary',
+          },
+          {
+            label: 'Pending invites',
+            value: loading ? '—' : pending.length,
+            hint: 'Awaiting password setup',
+            accent: 'warning',
+          },
+        ]}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GlassPanel strong className="overflow-hidden">
-          <SectionHeader
-            title="Pending invites"
-            count={loading ? undefined : pending.length}
-            tone="amber"
-            icon={<ClockIcon className="h-4 w-4" />}
-            description="Invites waiting for acceptance"
-          />
-          {loading ? (
-            <LoadingRows />
-          ) : pending.length === 0 ? (
-            <EmptyState
-              title="No pending invites"
-              description="Send an invite when you need to add another organiser."
-              actionLabel="Send invite"
-              onAction={openInvite}
-              tone="amber"
-            />
-          ) : (
-            <ul className="space-y-2 p-4 pt-2">
-              {pending.map((invite) => (
-                <PendingInviteRow
-                  key={invite.id}
-                  invite={invite}
-                  resending={resendingId === invite.id}
-                  onResend={() => onResend(invite.id)}
+      <Tabs defaultValue="active">
+        <TabsList>
+          <TabsTrigger value="active">
+            Active
+            {!loading && organizers.length > 0 ? ` (${organizers.length})` : ''}
+          </TabsTrigger>
+          <TabsTrigger value="pending">
+            Pending
+            {!loading && pending.length > 0 ? ` (${pending.length})` : ''}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending">
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <LoadingRows />
+              ) : pending.length === 0 ? (
+                <OrganizerEmptyState
+                  title="No pending invites"
+                  description="Send an invite when you need to add another organiser."
+                  actionLabel="Send invite"
+                  onAction={openInvite}
+                  tone="amber"
                 />
-              ))}
-            </ul>
-          )}
-        </GlassPanel>
+              ) : (
+                <ul className="space-y-2 p-4">
+                  {pending.map((invite) => (
+                    <PendingInviteRow
+                      key={invite.id}
+                      invite={invite}
+                      resending={resendingId === invite.id}
+                      onResend={() => onResend(invite.id)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <GlassPanel strong className="overflow-hidden">
-          <SectionHeader
-            title="Active organisers"
-            count={loading ? undefined : organizers.length}
-            tone="primary"
-            icon={<UserCheckIcon className="h-4 w-4" />}
-            description="Ready to manage events"
-          />
-          {loading ? (
-            <LoadingRows />
-          ) : organizers.length === 0 ? (
-            <EmptyState
-              title="No organisers yet"
-              description="Invited people appear here after they accept and set a password."
-              actionLabel="Send invite"
-              onAction={openInvite}
-              tone="primary"
-            />
-          ) : (
-            <ul className="space-y-2 p-4 pt-2">
-              {organizers.map((org) => (
-                <ActiveOrganizerRow key={org.id} organizer={org} />
-              ))}
-            </ul>
-          )}
-        </GlassPanel>
-      </div>
+        <TabsContent value="active">
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <LoadingRows />
+              ) : organizers.length === 0 ? (
+                <OrganizerEmptyState
+                  title="No organisers yet"
+                  description="Invited people appear here after they accept and set a password."
+                  actionLabel="Send invite"
+                  onAction={openInvite}
+                  tone="primary"
+                />
+              ) : (
+                <ul className="space-y-2 p-4">
+                  {organizers.map((org) => (
+                    <ActiveOrganizerRow key={org.id} organizer={org} />
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Modal
         open={modalOpen}
@@ -325,123 +303,6 @@ export function OrganizersPage() {
           </div>
         </form>
       </Modal>
-    </div>
-  )
-}
-
-function SummaryStat({
-  label,
-  value,
-  hint,
-  accent,
-  icon,
-}: {
-  label: string
-  value: number | null
-  hint: string
-  accent: 'primary' | 'amber'
-  icon: React.ReactNode
-}) {
-  const accentStyles =
-    accent === 'primary'
-      ? {
-          bar: 'bg-primary',
-          label: 'text-primary',
-          iconBg: 'bg-primary/10 text-primary',
-          glow: 'from-primary/8',
-        }
-      : {
-          bar: 'bg-amber-500',
-          label: 'text-amber-700',
-          iconBg: 'bg-amber-100 text-amber-700',
-          glow: 'from-amber-500/10',
-        }
-
-  return (
-    <GlassPanel
-      strong
-      className="relative overflow-hidden px-5 py-5 transition hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div
-        className={`absolute inset-y-0 left-0 w-1 ${accentStyles.bar}`}
-        aria-hidden
-      />
-      <div
-        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accentStyles.glow} to-transparent`}
-        aria-hidden
-      />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <p
-            className={`text-xs font-semibold uppercase tracking-wide ${accentStyles.label}`}
-          >
-            {label}
-          </p>
-          <p className="mt-2 font-display text-4xl font-bold tabular-nums tracking-tight text-ink">
-            {value === null ? '—' : value}
-          </p>
-          <p className="mt-1.5 text-xs text-ink/55">{hint}</p>
-        </div>
-        <span
-          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accentStyles.iconBg}`}
-          aria-hidden
-        >
-          {icon}
-        </span>
-      </div>
-    </GlassPanel>
-  )
-}
-
-function SectionHeader({
-  title,
-  count,
-  tone,
-  icon,
-  description,
-}: {
-  title: string
-  count?: number
-  tone: 'primary' | 'amber'
-  icon: React.ReactNode
-  description: string
-}) {
-  const toneStyles =
-    tone === 'primary'
-      ? {
-          bg: 'bg-gradient-to-r from-primary/8 via-primary/4 to-transparent',
-          badge: 'bg-primary text-white shadow-sm shadow-primary/25',
-          icon: 'bg-primary/10 text-primary',
-        }
-      : {
-          bg: 'bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-transparent',
-          badge: 'bg-amber-500 text-white shadow-sm shadow-amber-500/25',
-          icon: 'bg-amber-100 text-amber-700',
-        }
-
-  return (
-    <div
-      className={`flex items-center justify-between gap-3 border-b border-line/70 px-5 py-4 ${toneStyles.bg}`}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${toneStyles.icon}`}
-          aria-hidden
-        >
-          {icon}
-        </span>
-        <div>
-          <h2 className="text-base font-bold text-ink">{title}</h2>
-          <p className="text-xs text-ink/50">{description}</p>
-        </div>
-      </div>
-      {typeof count === 'number' ? (
-        <span
-          className={`inline-flex min-w-8 items-center justify-center rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${toneStyles.badge}`}
-        >
-          {count}
-        </span>
-      ) : null}
     </div>
   )
 }
@@ -533,7 +394,7 @@ function ActiveOrganizerRow({
   )
 }
 
-function EmptyState({
+function OrganizerEmptyState({
   title,
   description,
   actionLabel,
@@ -605,64 +466,6 @@ function UsersIcon({ className }: { className?: string }) {
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  )
-}
-
-function UserCheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <polyline points="16 11 18 13 22 9" />
-    </svg>
-  )
-}
-
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  )
-}
-
-function MailIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
     </svg>
   )
 }

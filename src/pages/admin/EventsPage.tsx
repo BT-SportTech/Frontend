@@ -16,7 +16,8 @@ import {
   type MatchOutcome,
 } from '../../lib/queries/events'
 import type { EventStatus, SportEvent } from '../../lib/types'
-import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/layout/FilterBar'
 import { toast } from '../../stores/useToastStore'
 
 const STATUS_STYLES: Record<EventStatus, string> = {
@@ -36,7 +37,7 @@ function formatWhen(iso: string) {
 export function EventsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const search = useAdminSearchStore((state) => state.events)
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
@@ -134,38 +135,40 @@ export function EventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-            Events
-          </h1>
-          <p className="mt-1.5 text-sm text-ink/55">
-            Create, schedule, and publish sports events
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <SelectInput
-            className="w-40"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as EventStatus | '')
-              setPage(1)
-            }}
-          >
-            <option value="">All statuses</option>
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </SelectInput>
-          <Button type="button" onClick={() => navigate('/admin/events/new')}>
-            Create event
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Events"
+        description="Create, schedule, and publish sports events"
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <SelectInput
+              className="w-40"
+              value={statusFilter}
+              onChange={(ev) => {
+                setStatusFilter(ev.target.value as EventStatus | '')
+                setPage(1)
+              }}
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </SelectInput>
+            <Button type="button" onClick={() => navigate('/admin/events/new')}>
+              Create event
+            </Button>
+          </div>
+        }
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search events…"
+      />
 
       <GlassPanel strong className="overflow-hidden">
-        <div className="min-h-[28rem] overflow-x-auto">
+        <div className="hidden min-h-[28rem] overflow-x-auto lg:block">
           <table className="w-full min-w-[960px] text-left text-sm text-ink">
             <thead className="border-b border-line bg-accent/40 text-ink/80">
               <tr>
@@ -291,6 +294,99 @@ export function EventsPage() {
             </tbody>
           </table>
         </div>
+
+        <div className="space-y-3 p-4 lg:hidden">
+          {isPending ? (
+            <p className="py-16 text-center text-sm text-ink/60">Loading…</p>
+          ) : events.length === 0 ? (
+            <p className="py-16 text-center text-sm text-ink/60">
+              No events found
+            </p>
+          ) : (
+            events.map((event) => (
+              <article
+                key={event.id}
+                className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+              >
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => navigate(`/admin/events/${event.id}`)}
+                >
+                  <div className="flex items-start gap-3">
+                    {event.imageUrl ? (
+                      <img
+                        src={resolveAssetUrl(event.imageUrl)}
+                        alt=""
+                        className="h-10 w-14 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-accent/50 text-[10px] text-ink/40">
+                        No img
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-ink">{event.name}</p>
+                      <p className="mt-0.5 text-xs text-ink/50">{event.venue}</p>
+                      <p className="mt-2 text-sm text-ink/70">
+                        {event.sport}
+                        <span className="text-ink/45"> · {event.ageCategory}</span>
+                      </p>
+                      <p className="mt-1 text-sm text-ink/60">
+                        {formatWhen(event.startsAt)}
+                      </p>
+                      <span
+                        className={`mt-2 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[event.status]}`}
+                      >
+                        {event.status}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+                <div
+                  className="mt-4 flex flex-wrap gap-2 border-t border-line/60 pt-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="!px-3 !py-1.5 text-xs"
+                    onClick={() => navigate(`/admin/events/${event.id}`)}
+                  >
+                    View
+                  </Button>
+                  {event.status === 'DRAFT' ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="!px-3 !py-1.5 text-xs"
+                      onClick={() =>
+                        setConfirmPublish({
+                          id: event.id,
+                          name: event.name,
+                        })
+                      }
+                    >
+                      Publish
+                    </Button>
+                  ) : null}
+                  {event.status === 'PUBLISHED' ||
+                  event.status === 'COMPLETED' ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="!px-3 !py-1.5 text-xs"
+                      onClick={(e) => void openResults(event, e)}
+                    >
+                      Results
+                    </Button>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+
         <div className="px-4 pb-4">
           <Pagination
             page={listPage}

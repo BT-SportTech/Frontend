@@ -12,7 +12,8 @@ import {
 import { fetchUsers, usersKeys } from '../../lib/queries/users'
 import { RANK_TIERS, rankTierFromPoints, type RankTier } from '../../lib/rankTier'
 import { formatUniqueCode } from '../../lib/uniqueCode'
-import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/layout/FilterBar'
 import { toast } from '../../stores/useToastStore'
 
 function formatWhen(iso: string) {
@@ -23,7 +24,7 @@ function formatWhen(iso: string) {
 
 export function PlayersPage() {
   const navigate = useNavigate()
-  const search = useAdminSearchStore((state) => state.players)
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
@@ -80,92 +81,77 @@ export function PlayersPage() {
     }
   }, [isError, listError])
 
-  const hasFilters = Boolean(stateFilter || cityFilter || rankFilter)
+  
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Players</h1>
-          <p className="mt-1 text-sm text-ink/55">
-            Browse registered players and view their profiles.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <SelectInput
-            className="w-44"
-            value={stateFilter}
-            onChange={(e) => {
-              setStateFilter(e.target.value)
-              setCityFilter('')
-              setPage(1)
-            }}
-            aria-label="Filter by state"
-          >
-            <option value="">All states</option>
-            {states.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </SelectInput>
-          <SelectInput
-            className="w-40"
-            value={cityFilter}
-            disabled={!stateFilter}
-            onChange={(e) => {
-              setCityFilter(e.target.value)
-              setPage(1)
-            }}
-            aria-label="Filter by city"
-          >
-            <option value="">
-              {stateFilter ? 'All cities' : 'Select state first'}
-            </option>
-            {cities.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </SelectInput>
-          <SelectInput
-            className="w-40"
-            value={rankFilter}
-            onChange={(e) => {
-              setRankFilter(e.target.value as RankTier | '')
-              setPage(1)
-            }}
-            aria-label="Filter by rank"
-          >
-            <option value="">All ranks</option>
-            {RANK_TIERS.map((rank) => (
-              <option key={rank} value={rank}>
-                {rank}
-              </option>
-            ))}
-          </SelectInput>
-          {hasFilters ? (
-            <button
-              type="button"
-              className="text-sm font-semibold text-primary hover:underline"
-              onClick={() => {
-                setStateFilter('')
+      <PageHeader
+        title="Players"
+        description="Browse registered players and view their profiles."
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <SelectInput
+              className="w-44"
+              value={stateFilter}
+              onChange={(ev) => {
+                setStateFilter(ev.target.value)
                 setCityFilter('')
-                setRankFilter('')
                 setPage(1)
               }}
+              aria-label="Filter by state"
             >
-              Clear
-            </button>
-          ) : null}
-          <p className="text-sm font-medium text-ink/60">
-            {total} player{total === 1 ? '' : 's'}
-          </p>
-        </div>
-      </div>
+              <option value="">All states</option>
+              {states.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </SelectInput>
+            <SelectInput
+              className="w-40"
+              value={cityFilter}
+              disabled={!stateFilter}
+              onChange={(ev) => {
+                setCityFilter(ev.target.value)
+                setPage(1)
+              }}
+              aria-label="Filter by city"
+            >
+              <option value="">All cities</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </SelectInput>
+            <SelectInput
+              className="w-36"
+              value={rankFilter}
+              onChange={(ev) => {
+                setRankFilter(ev.target.value as RankTier | '')
+                setPage(1)
+              }}
+              aria-label="Filter by rank"
+            >
+              <option value="">All ranks</option>
+              {RANK_TIERS.map((tier) => (
+                <option key={tier} value={tier}>
+                  {tier}
+                </option>
+              ))}
+            </SelectInput>
+          </div>
+        }
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search players…"
+      />
 
       <GlassPanel strong className="overflow-hidden">
-        <div className="min-h-[28rem] overflow-x-auto">
+        <div className="hidden min-h-[28rem] overflow-x-auto lg:block">
           <table className="w-full min-w-[720px] text-left text-sm text-ink">
             <thead className="border-b border-line bg-accent/40 text-ink/80">
               <tr>
@@ -235,8 +221,71 @@ export function PlayersPage() {
           </table>
         </div>
 
+        <div className="space-y-3 p-4 lg:hidden">
+          {isPending ? (
+            <p className="py-16 text-center text-sm text-ink/60">Loading…</p>
+          ) : players.length === 0 ? (
+            <p className="py-16 text-center text-sm text-ink/60">
+              No players found
+            </p>
+          ) : (
+            players.map((player) => {
+              const name =
+                displayName(player.firstName, player.lastName).trim() ||
+                player.username ||
+                'Unknown player'
+              const rank = rankTierFromPoints(player.totalPoints ?? 0)
+              return (
+                <button
+                  key={player.id}
+                  type="button"
+                  className="w-full rounded-xl border border-line/70 bg-white/80 p-4 text-left shadow-sm transition hover:border-primary/30"
+                  onClick={() => navigate(`/admin/players/${player.id}`)}
+                >
+                  <p className="font-semibold text-ink">{name}</p>
+                  <p className="mt-1 text-sm text-ink/60">
+                    {formatUniqueCode(player.username)}
+                  </p>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        Rank
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">{rank}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        State
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">
+                        {player.state?.trim() || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        City
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">
+                        {player.city?.trim() || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+                        Joined
+                      </dt>
+                      <dd className="mt-0.5 font-medium text-ink/80">
+                        {formatWhen(player.createdAt)}
+                      </dd>
+                    </div>
+                  </dl>
+                </button>
+              )
+            })
+          )}
+        </div>
+
         {totalPages > 1 ? (
-          <div className="border-t border-line px-4 py-3">
+          <div className="border-t border-line px-4 py-3 lg:border-t-0">
             <Pagination
               page={listPage}
               totalPages={totalPages}

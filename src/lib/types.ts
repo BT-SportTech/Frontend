@@ -298,8 +298,8 @@ export interface SportEvent {
   matchmakingStatus?: MatchmakingStatus
   matchmakingStartedAt?: string | null
   imageUrl?: string | null
-  schoolIds: string[]
-  schools: EventSchoolRef[]
+  schoolIds?: string[]
+  schools?: EventSchoolRef[]
   organizerIds?: string[]
   organizers?: {
     id: string

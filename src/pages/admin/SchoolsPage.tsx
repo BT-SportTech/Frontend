@@ -5,6 +5,8 @@ import { resolveAssetUrl } from '../../lib/api'
 import type { SchoolListItem } from '../../lib/types'
 import { Pagination } from '../../components/Pagination'
 import { Button, GlassPanel } from '../../components/ui'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { FilterBar } from '@/components/layout/FilterBar'
 import { DraftToast } from '../../components/ui/DraftToast'
 import { Modal } from '../../components/ui/Modal'
 import { dashboardKeys } from '../../lib/queries/dashboard'
@@ -19,13 +21,13 @@ import {
   readSchoolDraft,
 } from '../../lib/schoolDraft'
 import { emptySchoolForm } from '../../lib/schoolForm'
-import { useAdminSearchStore } from '../../stores/useAdminSearchStore'
+
 import { toast } from '../../stores/useToastStore'
 
 export function SchoolsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const search = useAdminSearchStore((state) => state.schools)
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [prevSearch, setPrevSearch] = useState(search)
@@ -120,22 +122,24 @@ export function SchoolsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-            Schools
-          </h1>
-          <p className="mt-1.5 text-sm text-ink/55">
-            Register and manage school profiles
-          </p>
-        </div>
-        <Button onClick={() => navigate('/admin/schools/new')}>
-          Add school
-        </Button>
-      </div>
+      <PageHeader
+        title="Schools"
+        description="Register and manage school profiles"
+        actions={
+          <Button onClick={() => navigate('/admin/schools/new')}>
+            Add school
+          </Button>
+        }
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search schools…"
+      />
 
       <GlassPanel strong className="overflow-hidden">
-        <div className="min-h-[28rem] overflow-x-auto">
+        <div className="hidden min-h-[28rem] overflow-x-auto lg:block">
           <table className="w-full min-w-[1100px] text-left text-sm text-ink">
             <thead className="border-b border-line bg-accent/40 text-ink/80">
               <tr>
@@ -314,6 +318,99 @@ export function SchoolsPage() {
             </tbody>
           </table>
         </div>
+
+        <div className="space-y-3 p-4 lg:hidden">
+          {isPending ? (
+            <p className="py-16 text-center text-sm text-ink/60">Loading…</p>
+          ) : schools.length === 0 ? (
+            <p className="py-16 text-center text-sm text-ink/60">
+              No schools found
+            </p>
+          ) : (
+            schools.map((s) => {
+              const location =
+                [s.city, s.district, s.state].filter(Boolean).join(', ') ||
+                '—'
+              return (
+                <article
+                  key={s.id}
+                  className="rounded-xl border border-line/70 bg-white/80 p-4 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    {s.logoUrl ? (
+                      <img
+                        src={resolveAssetUrl(s.logoUrl)}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-lg border border-line object-cover bg-white"
+                      />
+                    ) : (
+                      <span
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-accent/50 text-primary"
+                        aria-hidden
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-5 w-5"
+                        >
+                          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                          <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                        </svg>
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        className="text-left font-semibold text-ink hover:text-primary"
+                        onClick={() =>
+                          window.open(
+                            `/admin/schools/${s.id}`,
+                            '_blank',
+                            'noopener,noreferrer',
+                          )
+                        }
+                      >
+                        {s.name}
+                      </button>
+                      <p className="mt-1 text-sm text-ink/60">{location}</p>
+                      <span
+                        className={`mt-2 inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
+                          s.isActive
+                            ? 'bg-secondary/10 text-secondary'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {s.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2 border-t border-line/60 pt-3">
+                    <Button
+                      variant="ghost"
+                      className="!h-9 flex-1"
+                      onClick={() => navigate(`/admin/schools/${s.id}/edit`)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      className="!h-9 flex-1"
+                      onClick={() => setDeactivateTarget(s)}
+                    >
+                      Deactivate
+                    </Button>
+                  </div>
+                </article>
+              )
+            })
+          )}
+        </div>
+
         <div className="px-4 pb-4">
           <Pagination
             page={listPage}

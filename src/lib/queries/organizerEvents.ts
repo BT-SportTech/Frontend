@@ -11,6 +11,20 @@ export const organizerEventsKeys = {
     [...organizerEventsKeys.all, 'registrations', id] as const,
 }
 
+export type OrganizerEventSummary = {
+  id: string
+  name: string
+  venue: string
+  startsAt: string
+  status: string
+  state?: string | null
+  district?: string | null
+  imageUrl?: string | null
+  attendanceWindowOpen?: boolean
+  attendanceOpensAt?: string
+  sport?: string
+}
+
 export type OrganizerRegistrationsResponse = {
   eventId: string
   data: (EventRegistrationRow & {
@@ -26,16 +40,20 @@ export type OrganizerRegistrationsResponse = {
   attendanceOpensAt: string
 }
 
-export async function fetchOrganizerEvents(): Promise<{ data: SportEvent[] }> {
+export async function fetchOrganizerEvents(): Promise<{
+  data: OrganizerEventSummary[]
+}> {
   return api('/events/organizer/mine')
 }
 
-export async function fetchOrganizerEventHistory(): Promise<{
-  data: SportEvent[]
+export async function fetchOrganizerHistory(): Promise<{
+  data: OrganizerEventSummary[]
   meta: { total: number }
 }> {
   return api('/events/organizer/history')
 }
+
+export const fetchOrganizerEventHistory = fetchOrganizerHistory
 
 export async function fetchOrganizerEvent(id: string): Promise<SportEvent> {
   return api(`/events/${id}`)
