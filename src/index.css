@@ -54,6 +54,18 @@
 }
 
 @layer utilities {
+  .glass {
+    background: #ffffff;
+    border: 1px solid var(--color-line);
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
+  }
+
+  .glass-strong {
+    background: #ffffff;
+    border: 1px solid var(--color-line);
+    box-shadow: 0 1px 4px rgb(15 23 42 / 0.05);
+  }
+
   .animate-fade-in {
     animation: fade-in 0.35s ease-out both;
   }
